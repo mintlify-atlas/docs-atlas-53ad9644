@@ -1,0 +1,94 @@
+{
+  "projectType": "saas",
+  "projectName": "TeamUp",
+  "projectDescription": "A modern collaborative project management platform for seamless team coordination and task tracking",
+  "theme": "palm",
+  "primaryColor": "#3B82F6",
+  "lightColor": "#60A5FA",
+  "darkColor": "#2563EB",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/authentication",
+              "features/projects",
+              "features/tasks",
+              "features/team-management",
+              "features/file-management"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guides/creating-projects",
+              "guides/managing-teams",
+              "guides/task-workflows",
+              "guides/project-dashboards"
+            ]
+          },
+          {
+            "group": "Developer Guide",
+            "pages": [
+              "developers/environment-setup",
+              "developers/database-schema",
+              "developers/authentication",
+              "developers/api-overview"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/authentication",
+              "api-reference/projects",
+              "api-reference/tasks",
+              "api-reference/users"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Google OAuth Authentication",
+    "Project & Team Management",
+    "Task Creation & Approval Workflows",
+    "Role-Based Access Control",
+    "File Attachments",
+    "Real-Time Project Dashboards",
+    "Markdown Support",
+    "Dark/Light Mode"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/signup",
+    "POST /api/create-project",
+    "GET /api/project",
+    "POST /api/project",
+    "PUT /api/project",
+    "GET /api/project/[id]/dashboard",
+    "DELETE /api/project/[id]/delete",
+    "GET /api/project/[id]/stats",
+    "POST /api/task",
+    "GET /api/task",
+    "POST /api/task/submit",
+    "POST /api/task/approve",
+    "GET /api/user-search",
+    "GET /api/userinfo"
+  ]
+}
