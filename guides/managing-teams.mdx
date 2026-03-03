@@ -1,0 +1,320 @@
+---
+title: 'Managing Teams'
+description: 'Complete guide to team member management, roles, and permissions'
+icon: 'users-gear'
+---
+
+Effective team management is crucial for project success. TeamUp provides flexible tools for adding team members, assigning roles, and managing permissions throughout your project lifecycle.
+
+## Team Member Roles
+
+TeamUp uses a three-tier role system to balance collaboration with appropriate access control:
+
+| Role | Permissions | Use Case |
+|------|-------------|----------|
+| **Owner** | Full project control, delete project, manage all members | Project creator, primary stakeholder |
+| **Maintainer** | Approve tasks, manage contributors, update settings | Team leads, project managers |
+| **Contributor** | Create tasks, submit for review, view dashboard | Team members, developers, designers |
+
+## Adding Team Members
+
+### Searching for Users
+
+TeamUp's user search helps you find and add team members by email address.
+
+<Steps>
+  <Step title="Access Team Management">
+    Navigate to your project and click **Team** or **Manage Team** to open the team management interface.
+  </Step>
+
+  <Step title="Search by Email">
+    Enter the team member's email address in the search field. The search will:
+    - Match email addresses as you type
+    - Show up to 10 matching results
+    - Display users alphabetically
+    - Only show users with TeamUp accounts
+
+    <Info>
+      The search is case-insensitive and matches partial email addresses. For example, searching "john" will find "john@example.com" and "johnny@company.com".
+    </Info>
+  </Step>
+
+  <Step title="Select the User">
+    Click on the correct user from the search results. Their profile information will be displayed for confirmation.
+  </Step>
+
+  <Step title="Assign Initial Role">
+    Choose the appropriate role for this team member:
+    - **Contributor** for most team members
+    - **Maintainer** for team leads who will approve work
+
+    <Tip>
+      Start with the Contributor role and promote to Maintainer as needed. It's easier to grant additional permissions than to revoke them.
+    </Tip>
+  </Step>
+
+  <Step title="Add to Project">
+    Click **Add to Project** to send the invitation. The user will immediately see the project in their dashboard and receive a notification.
+  </Step>
+</Steps>
+
+### Inviting Multiple Members
+
+You can add multiple team members in succession:
+
+1. Add the first member following the steps above
+2. The search field will clear automatically
+3. Search for and add the next member
+4. Repeat as needed
+
+<Note>
+  All team members are automatically added as contributors by default. The project owner is included in both the owner and maintainer lists.
+</Note>
+
+## Managing Roles
+
+### Assigning Roles
+
+Roles define what team members can do within your project. Understanding these roles helps you structure your team effectively.
+
+#### Owner Role
+- **Automatically assigned** to the project creator
+- **Cannot be transferred** to another user
+- **Full permissions** including:
+  - Deleting the project
+  - Managing all team members
+  - Approving all tasks
+  - Updating project settings
+
+#### Maintainer Role
+
+Maintainers have elevated permissions for project management:
+
+```text
+Permissions:
+✓ Approve submitted tasks
+✓ Add new contributors to the project
+✓ Remove contributors from the project
+✓ Update contributor roles
+✓ View all project statistics
+✗ Delete the project
+✗ Remove the owner
+```
+
+**When to Assign:**
+- Team leads who review work
+- Senior developers who validate code
+- Project managers coordinating tasks
+
+<Warning>
+  Maintainers can remove other maintainers from the project. Choose maintainers you trust with project management responsibilities.
+</Warning>
+
+#### Contributor Role
+
+Contributors are your primary team members:
+
+```text
+Permissions:
+✓ Create new tasks
+✓ View assigned tasks
+✓ Upload task attachments
+✓ Submit tasks for review
+✓ View project dashboard
+✓ View project statistics
+✗ Approve tasks
+✗ Add or remove team members
+✗ Delete the project
+```
+
+**When to Assign:**
+- Developers working on features
+- Designers creating assets
+- Any team member doing hands-on work
+
+### Updating Member Roles
+
+You can change a team member's role at any time:
+
+<Steps>
+  <Step title="Open Team Management">
+    Navigate to your project's team management page.
+  </Step>
+
+  <Step title="Find the Team Member">
+    Locate the member whose role you want to change in the team list.
+  </Step>
+
+  <Step title="Change Role">
+    Click on their current role and select the new role from the dropdown:
+    - **Promote to Maintainer** - Give task approval permissions
+    - **Demote to Contributor** - Remove management permissions
+
+    <Info>
+      Role changes take effect immediately. The team member will see updated permissions right away.
+    </Info>
+  </Step>
+
+  <Step title="Confirm Change">
+    Click **Update Role** to save the change. The team member will be notified of their new permissions.
+  </Step>
+</Steps>
+
+## Removing Team Members
+
+### When to Remove Members
+
+- Team member leaving the organization
+- Project scope changes and member no longer needed
+- Member transferred to different project
+
+### Removal Process
+
+<Steps>
+  <Step title="Access Team Management">
+    Open the team management interface for your project.
+  </Step>
+
+  <Step title="Select Member to Remove">
+    Find the team member you want to remove and click the **Remove** button next to their name.
+  </Step>
+
+  <Step title="Review Impact">
+    Before removing, understand what happens to their tasks:
+
+    <AccordionGroup>
+      <Accordion title="Tasks with Single Assignee">
+        If the member was the only person assigned to a task, that task will be **permanently deleted**. Make sure to reassign important tasks before removing the member.
+      </Accordion>
+
+      <Accordion title="Tasks with Multiple Assignees">
+        If the task has other assignees, the member will simply be removed from the assignee list. The task continues normally with remaining assignees.
+      </Accordion>
+
+      <Accordion title="Task Approvals">
+        If the removed member was a maintainer who approved tasks, their approvals remain valid. The approval history is preserved.
+      </Accordion>
+    </AccordionGroup>
+  </Step>
+
+  <Step title="Confirm Removal">
+    Click **Confirm** to remove the team member. This action:
+    - Removes them from the project team
+    - Removes the project from their dashboard
+    - Deletes or unassigns their tasks (as described above)
+    - Cannot be undone (you'll need to re-add them)
+  </Step>
+</Steps>
+
+<Warning>
+  **Data Loss Risk:** Tasks assigned only to the removed member will be permanently deleted. Always reassign or back up important tasks before removing team members.
+</Warning>
+
+### What Happens When Members Leave
+
+When a team member is removed from a project:
+
+#### For the Member
+- ✓ Removed from project team lists
+- ✓ Project disappears from their dashboard
+- ✓ Loses access to project tasks and data
+- ✓ Cannot view project statistics or dashboard
+
+#### For Tasks
+- **Solo-assigned tasks:** Deleted permanently
+- **Multi-assigned tasks:** Member removed from assignee list
+- **Submitted tasks:** Remain in submission queue
+- **Approved tasks:** Approval history preserved
+
+#### For the Project
+- ✓ Team count decreases
+- ✓ Statistics recalculated without member's contributions
+- ✓ Remaining team members unaffected
+
+### Special Cases
+
+<AccordionGroup>
+  <Accordion title="Removing a Maintainer">
+    When removing a maintainer:
+    - If they're the last maintainer, the owner is automatically added as a maintainer
+    - Their previous task approvals remain valid
+    - They can be re-added later as a contributor
+  </Accordion>
+
+  <Accordion title="Cannot Remove Owner">
+    The project owner cannot be removed from the project. If the owner needs to leave:
+    - They must delete the entire project, or
+    - Transfer all assets to a new project with a new owner
+  </Accordion>
+
+  <Accordion title="Member Requests to Leave">
+    Members can request to leave a project. This follows the same process as removal, with the same effects on their tasks.
+  </Accordion>
+</AccordionGroup>
+
+## Team Management Best Practices
+
+### Start Small, Scale Smart
+- Begin with core team members
+- Add specialists as needed
+- Keep communication overhead low
+
+### Clear Role Assignment
+- Assign maintainers who can review work regularly
+- Make role expectations clear in project description
+- Document who to contact for approvals
+
+### Regular Team Audits
+- Review team roster monthly
+- Remove inactive members
+- Adjust roles based on contribution patterns
+
+### Before Removing Members
+
+<Checklist>
+  - [ ] Identify all tasks assigned to the member
+  - [ ] Reassign important tasks to other team members
+  - [ ] Document any in-progress work
+  - [ ] Notify the team about the change
+  - [ ] Update project documentation if needed
+</Checklist>
+
+### Communication
+- Notify team members before changing their roles
+- Explain the reason for role changes
+- Provide guidance for new maintainers
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Added wrong person to project">
+    Simply remove them from the team using the removal process. If they haven't been assigned any tasks, no data will be affected.
+  </Accordion>
+
+  <Accordion title="Need to temporarily remove someone">
+    TeamUp doesn't have a "suspend" feature. You'll need to remove and re-add the member when they return. Consider reassigning their tasks instead.
+  </Accordion>
+
+  <Accordion title="Member can't see the project">
+    Verify:
+    - They're logged in with the correct email address
+    - They were successfully added (check team roster)
+    - They've refreshed their dashboard
+    - No browser cache issues (try incognito mode)
+  </Accordion>
+
+  <Accordion title="Accidentally deleted tasks by removing member">
+    Unfortunately, deleted tasks cannot be recovered. This is why we recommend reassigning tasks before removing members. You'll need to recreate the tasks.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Task Workflows" icon="list-check" href="/guides/task-workflows">
+    Learn how team members create and complete tasks
+  </Card>
+  <Card title="Project Dashboards" icon="chart-line" href="/guides/project-dashboards">
+    Monitor team activity and project progress
+  </Card>
+</CardGroup>

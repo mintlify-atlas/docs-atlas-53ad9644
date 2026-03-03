@@ -1,0 +1,453 @@
+---
+title: 'Team Management'
+description: 'Invite members, manage roles, and collaborate effectively'
+---
+
+## Overview
+
+TeamUp's team management system enables project owners and maintainers to build and manage collaborative teams. The system supports role-based access control with three distinct roles: owner, maintainer, and contributor.
+
+## Team Roles and Permissions
+
+### Role Hierarchy
+
+<CardGroup cols={3}>
+  <Card title="Owner" icon="crown">
+    Full project control including deletion, member management, and all maintainer permissions.
+  </Card>
+  <Card title="Maintainer" icon="user-shield">
+    Task approval, member management assistance, and project oversight capabilities.
+  </Card>
+  <Card title="Contributor" icon="user">
+    Work on assigned tasks, submit work for review, and participate in projects.
+  </Card>
+</CardGroup>
+
+### Owner Permissions
+
+The project owner has complete control:
+
+- Create and delete the entire project
+- Add and remove any team member
+- Promote contributors to maintainers
+- Demote maintainers to contributors
+- Approve task submissions
+- Create and assign tasks
+- Edit project settings and description
+- View all project data and analytics
+
+<Note>
+The owner is automatically added to both maintainers and contributors lists, giving them all permissions across the project.
+</Note>
+
+### Maintainer Permissions
+
+Maintainers assist with project management:
+
+- Approve or reject task submissions
+- Create new tasks
+- Assign tasks to contributors
+- View project analytics
+- Monitor team progress
+- Cannot remove other maintainers
+- Cannot delete the project
+
+### Contributor Permissions
+
+Contributors are standard team members:
+
+- View assigned tasks
+- Work on tasks and attach files
+- Submit completed tasks for approval
+- View project information
+- Leave the project voluntarily
+- Cannot create tasks
+- Cannot approve submissions
+
+<Warning>
+Role permissions are enforced at the API level. Always validate user roles before allowing privileged operations.
+</Warning>
+
+## Inviting Team Members
+
+### Email-Based Search
+
+Team members are invited by searching for their email addresses:
+
+```typescript user-search/route.ts
+export async function GET(request: NextRequest) {
+  const queryParams = new URLSearchParams(request.nextUrl.searchParams);
+  const searchTerm = queryParams.get('t') || null;
+  const searchTermRegex = new RegExp(searchTerm);
+
+  const filter: any = {};
+  if (searchTermRegex) {
+    filter.emailId = { $regex: searchTermRegex, $options: 'i' };
+  }
+
+  const users = await User.find(filter)
+    .sort({ emailId: 1 })
+    .limit(10);
+
+  if (!users.length) {
+    return NextResponse.json(
+      { message: 'No users found' }, 
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json(users, { status: 200 });
+}
+```
+
+### Search Features
+
+- **Partial matching**: Search by partial email addresses
+- **Case-insensitive**: Matches regardless of letter casing
+- **Limited results**: Returns top 10 matches
+- **Sorted output**: Alphabetically ordered by email
+- **Real-time search**: Query as you type
+
+<Info>
+Only users who have already signed up for TeamUp can be invited to projects. Users must create an account before they can be added to a team.
+</Info>
+
+## Adding Team Members
+
+### Adding During Project Creation
+
+Members can be added when creating a project:
+
+```typescript create-project/route.ts
+const projectData = {
+  title: "New Project",
+  description: "Project description",
+  owner: "owner@example.com",
+  maintainers: [
+    "owner@example.com",
+    "maintainer@example.com"
+  ],
+  contributors: [
+    "owner@example.com",
+    "maintainer@example.com",
+    "contributor1@example.com",
+    "contributor2@example.com"
+  ],
+  tasks: [],
+  contributions: []
+};
+
+const newProject = new Project(projectData);
+const projectCreated = await newProject.save();
+
+// Update all contributors' user documents
+projectData.contributors.forEach(async (contributorEmailId: string) => {
+  await User.findOneAndUpdate(
+    { emailId: contributorEmailId },
+    { $push: { projects: projectCreated._id } }
+  );
+});
+```
+
+### Member List Requirements
+
+- **Owner** must be in contributors list
+- **Maintainers** must be in contributors list
+- **Contributors** is the complete team roster
+- All lists use email addresses as identifiers
+
+<Tip>
+When creating a project, ensure the owner's email is included in both maintainers and contributors arrays for proper access control.
+</Tip>
+
+## Role Management
+
+### Promoting Contributors to Maintainers
+
+To promote a contributor to maintainer:
+
+```typescript
+const project = await Project.findById(projectId);
+
+// Verify user is a contributor
+if (!project.contributors.includes(userEmail)) {
+  throw new Error('User must be a contributor');
+}
+
+// Add to maintainers if not already present
+if (!project.maintainers.includes(userEmail)) {
+  project.maintainers.push(userEmail);
+  await project.save();
+}
+```
+
+### Demoting Maintainers to Contributors
+
+To remove maintainer privileges:
+
+```typescript
+const project = await Project.findById(projectId);
+
+// Remove from maintainers array
+const maintainerIndex = project.maintainers.indexOf(userEmail);
+if (maintainerIndex > -1) {
+  // Ensure at least one maintainer remains
+  if (project.maintainers.length === 1) {
+    // Auto-add owner as maintainer
+    if (!project.maintainers.includes(project.owner)) {
+      project.maintainers.push(project.owner);
+    }
+  }
+  project.maintainers.splice(maintainerIndex, 1);
+  await project.save();
+}
+```
+
+<Warning>
+Never remove the last maintainer from a project. If needed, automatically promote the owner to maintainer to ensure project management capabilities.
+</Warning>
+
+## Removing Team Members
+
+### Member Removal with Task Reassignment
+
+When removing a member, their tasks must be handled:
+
+```typescript project/route.ts
+if (toLeave) {
+  for (const projectId of toLeave) {
+    const project = await Project.findOne({ _id: projectId });
+    if (!project) continue;
+
+    // Get tasks assigned to the leaving user
+    const userTasks = await Task.find({ 
+      projectId: projectId,
+      assignees: emailId 
+    });
+
+    if (userTasks.length > 0) {
+      // Remove task IDs from the user document
+      await User.findOneAndUpdate(
+        { emailId: emailId },
+        { $pull: { tasks: { $in: userTasks.map(task => task._id) } } }
+      );
+
+      // Delete tasks where this user was the only assignee
+      await Task.deleteMany({
+        projectId: projectId,
+        assignees: { $size: 1, $elemMatch: { $eq: emailId } }
+      });
+
+      // Remove user from tasks with multiple assignees
+      await Task.updateMany(
+        { projectId: projectId, assignees: emailId },
+        { $pull: { assignees: emailId } }
+      );
+    }
+
+    // Handle maintainer removal
+    const maintainers = project.maintainers;
+    if (maintainers.indexOf(emailId) > -1) {
+      if (maintainers.length === 1) {
+        maintainers.push(project.owner);
+      }
+      maintainers.splice(maintainers.indexOf(emailId), 1);
+    }
+
+    // Remove from contributors
+    const contributors = project.contributors;
+    const contributorIndex = contributors.indexOf(emailId);
+    if (contributorIndex > -1) {
+      contributors.splice(contributorIndex, 1);
+    }
+
+    await project.save();
+
+    // Remove project from user's project list
+    const user = await User.findOne({ emailId: emailId });
+    if (user) {
+      const index = user.projects.indexOf(projectId);
+      if (index > -1) {
+        user.projects.splice(index, 1);
+        await user.save();
+      }
+    }
+  }
+}
+```
+
+### Task Reassignment Rules
+
+1. **Solo tasks**: Deleted when the only assignee leaves
+2. **Shared tasks**: User removed, task remains with other assignees
+3. **Submitted tasks**: Handled the same way (no special treatment)
+4. **User references**: Removed from all user task lists
+
+<Note>
+Before removing a team member, consider reassigning their solo tasks to other contributors to avoid losing work.
+</Note>
+
+## Voluntary Project Exit
+
+### Leaving a Project
+
+Contributors can leave projects voluntarily using the same mechanism as removal:
+
+```typescript
+// API call to leave project
+const response = await fetch('/api/project', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userEmail: currentUserEmail,
+    toLeave: [projectId]
+  })
+});
+```
+
+### Exit Restrictions
+
+- **Owner cannot leave**: Must delete project or transfer ownership
+- **Last maintainer**: Owner automatically becomes maintainer
+- **Task cleanup**: User's tasks are reassigned or deleted
+- **References removed**: User removed from all project lists
+
+<Warning>
+Project owners cannot leave their own projects. They must either delete the project or promote another member to owner (requires manual database operation).
+</Warning>
+
+## Team Communication
+
+### Project Context
+
+Team members can view their role and responsibilities:
+
+```typescript
+const project = await Project.findById(projectId);
+const userRole = getUserRole(userEmail, project);
+
+function getUserRole(email: string, project: any): string {
+  if (project.owner === email) {
+    return 'owner';
+  }
+  if (project.maintainers.includes(email)) {
+    return 'maintainer';
+  }
+  if (project.contributors.includes(email)) {
+    return 'contributor';
+  }
+  return 'none';
+}
+```
+
+### Role-Based UI
+
+Display different UI elements based on user role:
+
+```typescript
+// Example: Conditional rendering based on role
+if (userRole === 'owner' || userRole === 'maintainer') {
+  // Show approval buttons
+  <ApproveTaskButton taskId={task.id} />
+}
+
+if (userRole === 'owner') {
+  // Show delete project button
+  <DeleteProjectButton projectId={project.id} />
+}
+```
+
+## Best Practices
+
+### Team Structure
+
+1. **Start small**: Begin with owner + 1-2 maintainers
+2. **Clear roles**: Communicate what each role can do
+3. **Promote carefully**: Only promote trusted, active members to maintainer
+4. **Regular reviews**: Audit team membership periodically
+5. **Document guidelines**: Use project description to explain team processes
+
+### Security Considerations
+
+```typescript
+// Always verify permissions before operations
+async function verifyMaintainerPermission(
+  userEmail: string, 
+  projectId: string
+): Promise<boolean> {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return false;
+  }
+  return project.owner === userEmail || 
+         project.maintainers.includes(userEmail);
+}
+
+// Use in API routes
+if (!await verifyMaintainerPermission(userEmail, projectId)) {
+  return NextResponse.json(
+    { error: 'Insufficient permissions' },
+    { status: 403 }
+  );
+}
+```
+
+### Error Handling
+
+```typescript
+try {
+  // Verify user exists
+  const user = await User.findOne({ emailId: email });
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Verify user is not already a member
+  if (project.contributors.includes(email)) {
+    throw new Error('User is already a team member');
+  }
+
+  // Add user to project
+  project.contributors.push(email);
+  await project.save();
+} catch (error) {
+  console.error('Error adding team member:', error);
+  return { error: error.message };
+}
+```
+
+<Tip>
+Implement proper permission checks at multiple levels: UI (for user experience), API (for security), and database (for data integrity).
+</Tip>
+
+## Team Analytics
+
+### Member Statistics
+
+Track team member contributions:
+
+```typescript
+const memberStats = {
+  totalMembers: project.contributors.length,
+  maintainers: project.maintainers.length,
+  contributors: project.contributors.length - project.maintainers.length,
+  tasksPerMember: await getTaskDistribution(project._id)
+};
+
+async function getTaskDistribution(projectId: string) {
+  const tasks = await Task.find({ projectId });
+  const distribution: Record<string, number> = {};
+  
+  tasks.forEach(task => {
+    task.assignees.forEach((email: string) => {
+      distribution[email] = (distribution[email] || 0) + 1;
+    });
+  });
+  
+  return distribution;
+}
+```
+
+<Info>
+Use team analytics to identify overburdened members and ensure balanced task distribution across your team.
+</Info>

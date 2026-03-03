@@ -1,0 +1,282 @@
+---
+title: 'Environment Setup'
+description: 'Complete guide to setting up the TeamUp development environment'
+---
+
+## Prerequisites
+
+Before setting up TeamUp locally, ensure you have the following installed:
+
+- **Node.js**: Version 20.x or higher
+- **npm**: Comes with Node.js
+- **MongoDB**: Local instance or MongoDB Atlas account
+- **Git**: For cloning the repository
+
+<Note>
+  TeamUp uses Next.js 14 with the App Router and requires MongoDB for data storage.
+</Note>
+
+## Cloning the Repository
+
+Clone the TeamUp repository to your local machine:
+
+```bash
+git clone <repository-url>
+cd team-up
+```
+
+## Installing Dependencies
+
+Install all required npm packages:
+
+```bash
+npm install
+```
+
+### Key Dependencies
+
+The project includes the following major dependencies:
+
+- **Next.js 14.2.15**: React framework with App Router
+- **NextAuth.js v5**: Authentication library
+- **Mongoose 8.3.4**: MongoDB ODM
+- **Material-UI v5**: UI component library
+- **TypeScript**: Type-safe JavaScript
+
+## Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```bash
+# MongoDB Configuration
+MONGODB_URI=mongodb://localhost:27017/teamup
+# or for MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/teamup
+
+# NextAuth.js Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+
+# Google OAuth Configuration
+AUTH_GOOGLE_ID=your-google-client-id
+AUTH_GOOGLE_SECRET=your-google-client-secret
+```
+
+### Environment Variable Details
+
+<Accordion title="MONGODB_URI">
+  **Required**: Yes
+  
+  MongoDB connection string. Can be a local MongoDB instance or MongoDB Atlas cluster.
+  
+  **Example**:
+  ```
+  mongodb://localhost:27017/teamup
+  mongodb+srv://user:pass@cluster.mongodb.net/teamup
+  ```
+</Accordion>
+
+<Accordion title="AUTH_GOOGLE_ID">
+  **Required**: Yes
+  
+  Google OAuth 2.0 Client ID. Obtain from [Google Cloud Console](https://console.cloud.google.com/).
+  
+  **Steps to obtain**:
+  1. Create a project in Google Cloud Console
+  2. Enable Google+ API
+  3. Create OAuth 2.0 credentials
+  4. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
+</Accordion>
+
+<Accordion title="AUTH_GOOGLE_SECRET">
+  **Required**: Yes
+  
+  Google OAuth 2.0 Client Secret. Obtained alongside the Client ID from Google Cloud Console.
+</Accordion>
+
+<Accordion title="NEXTAUTH_URL">
+  **Required**: Yes (for production)
+  
+  The canonical URL of your site. Use `http://localhost:3000` for local development.
+  
+  **Production**: Set to your production domain (e.g., `https://teamup.com`)
+</Accordion>
+
+<Accordion title="NEXTAUTH_SECRET">
+  **Required**: Yes (for production)
+  
+  Secret key used to encrypt NextAuth.js JWT tokens. Generate a secure random string.
+  
+  **Generate a secret**:
+  ```bash
+  openssl rand -base64 32
+  ```
+</Accordion>
+
+<Warning>
+  Never commit your `.env.local` file to version control. It contains sensitive credentials.
+</Warning>
+
+## Database Connection Setup
+
+TeamUp uses a connection pooling strategy for optimal MongoDB performance. The database connection is managed in `config/db.ts`:
+
+```typescript
+import mongoose from "mongoose"
+
+export const connectDB = async () => {
+    if (mongoose.connection.readyState !== 1) {
+        await mongoose.connect(process.env.MONGODB_URI+'', {
+            maxPoolSize: 50,  // Optimized pool size
+            minPoolSize: 10,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+            connectTimeoutMS: 10000,
+            maxIdleTimeMS: 30000,
+            compressors: "zlib"  // Network compression
+        });
+    }
+};
+```
+
+### Connection Pooling Benefits
+
+- **maxPoolSize**: Maximum 50 concurrent connections
+- **minPoolSize**: Maintains 10 connections for faster requests
+- **Timeouts**: Configured for reliability and performance
+- **Compression**: zlib compression reduces network bandwidth
+
+<Note>
+  The connection is automatically reused across requests. You don't need to manually connect/disconnect in API routes.
+</Note>
+
+## Running the Development Server
+
+Start the Next.js development server:
+
+```bash
+npm run dev
+```
+
+The application will be available at [http://localhost:3000](http://localhost:3000).
+
+### Available Scripts
+
+From `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  }
+}
+```
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Starts development server with hot reload |
+| `npm run build` | Creates production build |
+| `npm run start` | Runs production server (requires build first) |
+| `npm run lint` | Runs ESLint to check code quality |
+
+## Building for Production
+
+### 1. Create Production Build
+
+```bash
+npm run build
+```
+
+This command:
+- Compiles TypeScript to JavaScript
+- Optimizes and minifies code
+- Generates static pages where possible
+- Creates production bundles
+
+### 2. Start Production Server
+
+```bash
+npm run start
+```
+
+The production server will run on port 3000 by default.
+
+<Warning>
+  Ensure all environment variables are properly set before building for production. The build process may fail if required variables are missing.
+</Warning>
+
+## Verifying the Setup
+
+### 1. Check MongoDB Connection
+
+Visit any API endpoint (e.g., `http://localhost:3000/api/userinfo`) - you should see proper responses or authentication requirements.
+
+### 2. Test Authentication
+
+1. Navigate to `http://localhost:3000/log-in`
+2. Click "Sign in with Google"
+3. Complete OAuth flow
+4. You should be redirected to `/home`
+
+### 3. Check Console for Errors
+
+Monitor the terminal for connection errors or missing configuration warnings.
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="MongoDB Connection Failed">
+    **Error**: `MongoServerSelectionError: connect ECONNREFUSED`
+    
+    **Solutions**:
+    - Ensure MongoDB is running locally: `mongod`
+    - Verify `MONGODB_URI` in `.env.local`
+    - Check network connectivity for MongoDB Atlas
+    - Verify IP whitelist in Atlas (add `0.0.0.0/0` for development)
+  </Accordion>
+  
+  <Accordion title="Google OAuth Error">
+    **Error**: `redirect_uri_mismatch` or `invalid_client`
+    
+    **Solutions**:
+    - Verify `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`
+    - Add `http://localhost:3000/api/auth/callback/google` to authorized redirect URIs
+    - Ensure OAuth consent screen is configured
+  </Accordion>
+  
+  <Accordion title="NextAuth Session Error">
+    **Error**: `[next-auth][error][JWT_SESSION_ERROR]`
+    
+    **Solutions**:
+    - Set `NEXTAUTH_SECRET` in `.env.local`
+    - Generate new secret: `openssl rand -base64 32`
+    - Restart development server after adding secret
+  </Accordion>
+  
+  <Accordion title="Port Already in Use">
+    **Error**: `Error: listen EADDRINUSE: address already in use :::3000`
+    
+    **Solutions**:
+    - Kill process using port 3000: `lsof -ti:3000 | xargs kill`
+    - Or use different port: `PORT=3001 npm run dev`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Schema" icon="database" href="/developers/database-schema">
+    Learn about MongoDB models and relationships
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/developers/authentication">
+    Understand the authentication implementation
+  </Card>
+  
+  <Card title="API Overview" icon="code" href="/developers/api-overview">
+    Explore the API architecture and patterns
+  </Card>
+</CardGroup>

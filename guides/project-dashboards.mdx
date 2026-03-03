@@ -1,0 +1,540 @@
+---
+title: 'Project Dashboards'
+description: 'Monitor project progress, team activity, and performance metrics'
+icon: 'chart-line'
+---
+
+Project dashboards provide real-time visibility into your project's health, progress, and team activity. Use these insights to track work, identify bottlenecks, and keep projects on schedule.
+
+## Dashboard Overview
+
+Every project has a dedicated dashboard accessible to all team members (contributors, maintainers, and owners). Dashboards automatically update to reflect the latest project data.
+
+### Accessing Your Dashboard
+
+<Steps>
+  <Step title="Navigate to Project">
+    From your main dashboard, click on the project you want to monitor.
+  </Step>
+
+  <Step title="Open Dashboard View">
+    Click **Dashboard** in the project navigation or select **View Dashboard** from the project menu.
+  </Step>
+
+  <Step title="View Real-Time Data">
+    The dashboard loads with current project statistics and updates automatically as team members work.
+  </Step>
+</Steps>
+
+<Info>
+  Dashboard data is cached for 60 seconds to optimize performance. You may notice a brief delay (up to 1 minute) before new changes appear.
+</Info>
+
+## Dashboard Components
+
+Your project dashboard displays key information organized into sections:
+
+### Project Header
+
+The dashboard header shows essential project information:
+
+```json
+{
+  "title": "Mobile App Redesign Q1 2024",
+  "ownerName": "Sarah Johnson",
+  "ownerPic": "/uploads/profile-pics/sarah.jpg",
+  "ownerEmailId": "sarah@company.com",
+  "updatedAt": "2024-03-03T10:30:00Z"
+}
+```
+
+**Displays:**
+- **Project Title** - The project name
+- **Owner Information** - Name, profile picture, and contact email
+- **Last Updated** - When the project was last modified
+
+<Tip>
+  Click on the owner's name or picture to view their full profile or send them a message.
+</Tip>
+
+### Project Statistics
+
+The statistics section provides quantitative metrics about project progress:
+
+#### Total Tasks
+
+The complete count of all tasks created in the project, regardless of status.
+
+```text
+Total Tasks: 47
+```
+
+**Includes:**
+- Created but not started
+- In progress
+- Submitted for review
+- Approved and completed
+
+**Use this to:**
+- Gauge project scope and workload
+- Track how work is being broken down
+- Compare against original project estimates
+
+#### Completed Tasks
+
+Tasks that have been approved by at least one maintainer.
+
+```text
+Completed Tasks: 32
+```
+
+**Calculation:**
+Counts tasks where `status === 'completed'` in the database. A task is marked completed when:
+- It has been submitted for review
+- At least one maintainer has approved it
+- The approval is recorded in the task's approval array
+
+**Use this to:**
+- Track project progress
+- Calculate completion percentage
+- Identify when projects are nearing completion
+
+<Note>
+  The completed tasks metric uses aggregation queries for accuracy, filtering tasks by `status: 'completed'` from the project's task collection.
+</Note>
+
+#### Active Contributors
+
+Team members who have been active in the last 7 days.
+
+```text
+Active Contributors: 8 / 12
+```
+
+**Calculation:**
+Counts contributor accounts where `lastActive > (Current Date - 7 days)`
+
+**Tracks activity like:**
+- Creating or updating tasks
+- Uploading files
+- Submitting work for review
+- Logging into the platform
+
+**Use this to:**
+- Monitor team engagement
+- Identify inactive team members
+- Assess if additional help is needed
+- Spot potential bottlenecks
+
+<Warning>
+  A low active contributor ratio might indicate team members are blocked, disengaged, or working outside the platform. Follow up with inactive members to understand why.
+</Warning>
+
+### Progress Visualization
+
+Dashboards calculate and display progress metrics:
+
+#### Completion Percentage
+
+```javascript
+const completionRate = (completedTasks / totalTasks) * 100;
+// Example: (32 / 47) * 100 = 68.1%
+```
+
+**Visual Display:**
+- Progress bar showing percentage complete
+- Color coding:
+  - 🔴 Red (0-33%): Early stages
+  - 🟡 Yellow (34-66%): Mid-progress
+  - 🟢 Green (67-100%): Near completion
+
+#### Task Status Breakdown
+
+Pie chart or bar graph showing:
+- Tasks not started
+- Tasks in progress (assigned but not submitted)
+- Tasks submitted for review
+- Tasks completed (approved)
+
+<Tip>
+  A healthy project typically has most tasks either in progress or completed, with few tasks stuck in "submitted for review" status. Many tasks awaiting review suggests you may need more active maintainers.
+</Tip>
+
+## Team Activity Insights
+
+Monitor how your team is working together:
+
+### Contributor Activity
+
+View which team members are most active:
+
+- **Top Contributors** - Members with most completed tasks
+- **Recent Activity** - Who has worked in the last 24 hours
+- **Contribution Distribution** - How work is spread across the team
+
+### Task Distribution
+
+See how tasks are allocated:
+
+```text
+Per-Person Task Load:
+- Sarah: 8 tasks (5 completed, 3 in progress)
+- Mike: 6 tasks (4 completed, 2 in progress)
+- Emma: 7 tasks (6 completed, 1 submitted)
+```
+
+**Use this to:**
+- Balance workload across team members
+- Identify overburdened or underutilized members
+- Plan future task assignments
+
+### Approval Activity
+
+Track maintainer responsiveness:
+
+- **Pending Approvals** - Tasks submitted but not yet approved
+- **Average Approval Time** - How long tasks wait in review queue
+- **Approvals by Maintainer** - Which maintainers are most active
+
+<Info>
+  Long approval wait times can bottleneck projects. If you see tasks pending review for extended periods, consider:
+  - Adding more maintainers
+  - Setting approval SLAs
+  - Redistributing review responsibilities
+</Info>
+
+## Real-Time Updates
+
+Dashboards update automatically to reflect the current project state:
+
+### What Updates in Real-Time
+
+✓ **Task counts** when tasks are created or completed
+✓ **Active contributor counts** when members log activity
+✓ **Completion percentages** when task statuses change
+✓ **Last updated timestamp** when any project data changes
+
+### Caching and Performance
+
+To ensure fast dashboard loading:
+
+```javascript
+// Dashboard data caching
+export const revalidate = 60 // Cache for 60 seconds
+
+// Headers sent with dashboard data:
+{
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30'
+}
+```
+
+**What this means:**
+- Dashboard data is cached for 60 seconds
+- Reduces database load for frequently accessed dashboards
+- Updates appear within 1 minute of changes
+- Stale data served while revalidating for better UX
+
+<Note>
+  If you need the absolute latest data, refresh the page. The cache will be bypassed and fresh data loaded from the database.
+</Note>
+
+## Statistics API
+
+Dashboards pull data from the project statistics endpoint:
+
+### Dashboard Info Endpoint
+
+```bash
+GET /api/project/{projectId}/dashboard
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "data": {
+    "title": "Mobile App Redesign Q1 2024",
+    "ownerName": "Sarah Johnson",
+    "ownerPic": "/uploads/sarah.jpg",
+    "ownerEmailId": "sarah@company.com",
+    "updatedAt": "2024-03-03T10:30:00Z"
+  }
+}
+```
+
+### Statistics Endpoint
+
+```bash
+GET /api/project/{projectId}/stats
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "data": {
+    "title": "Mobile App Redesign Q1 2024",
+    "totalTasks": 47,
+    "completedTasks": 32,
+    "activeContributors": 8
+  }
+}
+```
+
+### How Statistics Are Calculated
+
+The statistics endpoint uses MongoDB aggregation:
+
+```javascript
+const projectStats = await Project.aggregate([
+  { $match: { _id: projectId }},
+  
+  // Join with tasks collection
+  {
+    $lookup: {
+      from: 'tasks',
+      localField: '_id',
+      foreignField: 'projectId',
+      as: 'tasks'
+    }
+  },
+  
+  // Join with users collection  
+  {
+    $lookup: {
+      from: 'users',
+      localField: 'contributors',
+      foreignField: 'emailId',
+      as: 'contributorDetails'
+    }
+  },
+  
+  // Calculate metrics
+  {
+    $project: {
+      title: 1,
+      totalTasks: { $size: '$tasks' },
+      completedTasks: {
+        $size: {
+          $filter: {
+            input: '$tasks',
+            as: 'task',
+            cond: { $eq: ['$$task.status', 'completed'] }
+          }
+        }
+      },
+      activeContributors: {
+        $size: {
+          $filter: {
+            input: '$contributorDetails',
+            as: 'contributor',
+            cond: { 
+              $gt: ['$lastActive', new Date(Date.now() - 7*24*60*60*1000)] 
+            }
+          }
+        }
+      }
+    }
+  }
+]);
+```
+
+<Tip>
+  This aggregation approach is highly efficient, calculating all statistics in a single database query rather than multiple round trips.
+</Tip>
+
+## Using Dashboard Data
+
+### Project Health Checks
+
+Use dashboard metrics to assess project health:
+
+<AccordionGroup>
+  <Accordion title="Green: Project on Track" icon="circle-check">
+    **Indicators:**
+    - Completion rate above 60%
+    - Most contributors active in last 7 days
+    - Few tasks stuck in review
+    - Steady progress week over week
+
+    **Action:** Maintain current pace and processes.
+  </Accordion>
+
+  <Accordion title="Yellow: Needs Attention" icon="circle-exclamation">
+    **Indicators:**
+    - Completion rate 30-60%
+    - Half or fewer contributors active
+    - Growing review queue
+    - Slowing progress rate
+
+    **Action:** Investigate blockers, redistribute work, add resources if needed.
+  </Accordion>
+
+  <Accordion title="Red: At Risk" icon="circle-xmark">
+    **Indicators:**
+    - Completion rate below 30%
+    - Few active contributors
+    - Many pending approvals
+    - Stalled progress
+
+    **Action:** Urgent intervention needed. Review project scope, resources, and blockers.
+  </Accordion>
+</AccordionGroup>
+
+### Sprint/Milestone Tracking
+
+Use dashboards to monitor sprint progress:
+
+1. **Baseline:** Note total tasks and completion at sprint start
+2. **Daily Check:** Review progress and active contributors
+3. **Mid-Sprint:** Assess if on track for sprint goals
+4. **End of Sprint:** Calculate velocity and completed work
+
+### Team Performance
+
+Identify patterns in team behavior:
+
+- **Highly Active Teams** - Consistently high active contributor counts
+- **Unbalanced Load** - Few contributors doing most work
+- **Review Bottlenecks** - Tasks stuck waiting for maintainer approval
+- **Sprint Patterns** - Activity spikes near deadlines
+
+## Best Practices
+
+### Regular Dashboard Reviews
+
+<Checklist>
+  - [ ] Check dashboard at least daily for active projects
+  - [ ] Review metrics in weekly team meetings
+  - [ ] Track trends over time, not just point-in-time data
+  - [ ] Compare actual progress to plans and forecasts
+</Checklist>
+
+### Responding to Dashboard Data
+
+**When completion rate is low:**
+- Break down large tasks into smaller ones
+- Identify and remove blockers
+- Reassess project scope and timeline
+
+**When active contributors are low:**
+- Check in with team members
+- Identify if work is happening outside the platform
+- Address any team morale or engagement issues
+
+**When tasks pile up in review:**
+- Add more maintainers
+- Set approval SLAs
+- Streamline review process
+
+### Communication
+
+Use dashboard data in team communication:
+
+> "Great progress this week! We're at 68% completion with 32 of 47 tasks done. Let's focus on the remaining 15 tasks to close out the sprint."
+
+> "I noticed only 4 of our 12 team members were active this week. Let's check in on what's blocking the others."
+
+> "We have 8 tasks pending approval. Maintainers, please prioritize reviews so contributors aren't blocked."
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Dashboard not updating">
+    **Possible causes:**
+    - Browser cache showing old data
+    - Within 60-second cache window
+    - Connection issues
+
+    **Solutions:**
+    - Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)
+    - Wait 1 minute for cache to expire
+    - Check internet connection
+  </Accordion>
+
+  <Accordion title="Statistics seem incorrect">
+    **Verify:**
+    - Count tasks manually in task list
+    - Check if tasks have correct status
+    - Ensure database sync is complete
+
+    **If still wrong:**
+    Contact support with specific discrepancies.
+  </Accordion>
+
+  <Accordion title="Can't access dashboard">
+    **Requirements:**
+    - Must be a project member (any role)
+    - Project must exist and not be deleted
+    - Must be logged in
+
+    **Check:**
+    - You're in the project team roster
+    - Using correct project ID
+    - Session hasn't expired
+  </Accordion>
+
+  <Accordion title="Active contributors count seems wrong">
+    **Remember:**
+    - Only counts activity in last 7 days
+    - Activity must be platform actions (logins, task updates, etc.)
+    - External work doesn't count toward activity
+
+    Contributors working only in external tools (Slack, email, etc.) won't show as active.
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Dashboard Usage
+
+### Exporting Data
+
+While TeamUp doesn't have built-in export features, you can:
+
+- Take screenshots of dashboards for reports
+- Manually record metrics in spreadsheets for trend analysis
+- Use the API endpoints to pull data programmatically
+
+### Integrations
+
+Consider integrating dashboard data with:
+
+- **Slack/Teams** - Post daily progress updates
+- **Spreadsheets** - Track metrics over time
+- **Project Management Tools** - Sync completion status
+
+### Custom Reporting
+
+Use the statistics API to build custom reports:
+
+```javascript
+// Fetch multiple projects
+const projects = ['project1', 'project2', 'project3'];
+const stats = await Promise.all(
+  projects.map(id => fetch(`/api/project/${id}/stats`))
+);
+
+// Aggregate cross-project metrics
+const totalTasks = stats.reduce((sum, s) => sum + s.totalTasks, 0);
+const totalCompleted = stats.reduce((sum, s) => sum + s.completedTasks, 0);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Task Workflows" icon="list-check" href="/guides/task-workflows">
+    Learn how tasks move from creation to completion
+  </Card>
+  <Card title="Managing Teams" icon="users-gear" href="/guides/managing-teams">
+    Understand how team composition affects metrics
+  </Card>
+</CardGroup>
+
+## Summary
+
+Project dashboards give you real-time visibility into:
+- ✓ Overall project progress and completion rates
+- ✓ Team activity and engagement levels  
+- ✓ Task distribution and workload balance
+- ✓ Approval bottlenecks and review queues
+
+Check your dashboard regularly, respond to trends proactively, and use data to keep projects on track and teams productive.

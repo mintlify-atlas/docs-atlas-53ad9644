@@ -1,80 +1,153 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart'
+description: 'Get up and running with TeamUp in under 5 minutes'
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
+Before you begin, ensure you have the following installed:
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+- **Node.js** (version 20 or higher)
+- **npm**, **yarn**, or **pnpm** package manager
+- **MongoDB** database (local or cloud instance like MongoDB Atlas)
+- **Google OAuth Credentials** (for authentication)
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  If you don't have Google OAuth credentials, you'll need to create them in the [Google Cloud Console](https://console.cloud.google.com/).
 </Note>
+
+## Quick Setup
+
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the TeamUp repository to your local machine:
+    
+    ```bash
+    git clone https://github.com/abz4375/TeamUp.git
+    cd TeamUp
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install the required dependencies using your preferred package manager:
+    
+    ```bash
+    npm install
+    ```
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create a `.env.local` file in the root directory and add your environment variables:
+    
+    ```env
+    MONGODB_URI=your_mongodb_connection_string
+    AUTH_GOOGLE_ID=your_google_client_id
+    AUTH_GOOGLE_SECRET=your_google_client_secret
+    ```
+    
+    <Note>
+      Replace the placeholder values with your actual MongoDB URI and Google OAuth credentials.
+    </Note>
+    
+    **Get your MongoDB URI:**
+    - For MongoDB Atlas: Use the connection string from your cluster dashboard
+    - For local MongoDB: Use `mongodb://localhost:27017/teamup`
+    
+    **Get Google OAuth credentials:**
+    1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+    2. Create a new project or select an existing one
+    3. Enable the Google+ API
+    4. Create OAuth 2.0 credentials
+    5. Add `http://localhost:3000/api/auth/callback/google` to authorized redirect URIs
+  </Step>
+
+  <Step title="Run the Development Server">
+    Start the development server:
+    
+    ```bash
+    npm run dev
+    ```
+    
+    Open [http://localhost:3000](http://localhost:3000) in your browser.
+  </Step>
+
+  <Step title="Sign In with Google">
+    Click the "Sign In" button and authenticate using your Google account.
+    
+    <Note>
+      Make sure you're using a Google account that you want to associate with your TeamUp profile.
+    </Note>
+  </Step>
+
+  <Step title="Create Your First Project">
+    Once signed in:
+    
+    1. Click on **"Create Project"** or **"New Project"**
+    2. Enter a project name and description (supports Markdown)
+    3. Click **"Create"** to initialize your project
+    4. Start inviting team members and creating tasks!
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation Guide"
+    icon="book"
+    href="/installation"
+  >
+    Learn about detailed configuration options and deployment
+  </Card>
+  <Card
+    title="Project Management"
+    icon="folder"
+    href="/features/projects"
+  >
+    Explore how to manage projects and teams effectively
+  </Card>
+  <Card
+    title="Task Workflows"
+    icon="tasks"
+    href="/features/tasks"
+  >
+    Understand task creation and approval workflows
+  </Card>
+  <Card
+    title="Authentication"
+    icon="key"
+    href="/features/authentication"
+  >
+    Deep dive into authentication and user management
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="MongoDB connection error">
+    If you're getting a MongoDB connection error:
+    
+    - Verify your `MONGODB_URI` is correct
+    - Ensure MongoDB is running (for local instances)
+    - Check network access settings (for MongoDB Atlas)
+    - Make sure your IP address is whitelisted in MongoDB Atlas
+  </Accordion>
+  
+  <Accordion title="Google OAuth not working">
+    If Google OAuth authentication fails:
+    
+    - Verify `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are correct
+    - Ensure the redirect URI is added to your Google OAuth app settings
+    - Check that the Google+ API is enabled in your Google Cloud project
+  </Accordion>
+  
+  <Accordion title="Port 3000 already in use">
+    If port 3000 is already in use:
+    
+    ```bash
+    # Run on a different port
+    PORT=3001 npm run dev
+    ```
+  </Accordion>
+</AccordionGroup>

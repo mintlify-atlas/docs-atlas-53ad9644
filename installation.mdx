@@ -1,0 +1,375 @@
+---
+title: 'Installation'
+description: 'Complete guide to installing and configuring TeamUp'
+---
+
+## System Requirements
+
+Before installing TeamUp, ensure your system meets these requirements:
+
+- **Node.js:** Version 20.x or higher
+- **Package Manager:** npm, yarn, or pnpm
+- **Database:** MongoDB 4.4 or higher
+- **Memory:** At least 2GB RAM available
+- **Disk Space:** At least 500MB free space
+
+## Installation Steps
+
+### 1. Clone the Repository
+
+Clone the TeamUp repository from GitHub:
+
+```bash
+git clone https://github.com/abz4375/TeamUp.git
+cd TeamUp
+```
+
+### 2. Install Dependencies
+
+Install all required dependencies using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install
+```
+
+```bash yarn
+yarn install
+```
+
+```bash pnpm
+pnpm install
+```
+
+</CodeGroup>
+
+This will install all dependencies including:
+
+- **Next.js 14** - React framework
+- **NextAuth.js v5** - Authentication
+- **Material-UI v5** - UI components
+- **Mongoose v8** - MongoDB ODM
+- **React Markdown** - Markdown rendering
+- **Formidable** - File upload handling
+
+### 3. Environment Configuration
+
+Create a `.env.local` file in the root directory of the project:
+
+```bash
+touch .env.local
+```
+
+Add the following environment variables:
+
+```env .env.local
+# Database Configuration
+MONGODB_URI=your_mongodb_connection_string
+
+# Google OAuth Configuration
+AUTH_GOOGLE_ID=your_google_client_id
+AUTH_GOOGLE_SECRET=your_google_client_secret
+
+# Optional: Deployment URL (for Vercel deployments)
+VERCEL_URL=your_vercel_url
+```
+
+<Warning>
+  Never commit your `.env.local` file to version control. Make sure it's listed in your `.gitignore` file.
+</Warning>
+
+#### Environment Variable Details
+
+<AccordionGroup>
+  <Accordion title="MONGODB_URI - Database Connection">
+    Your MongoDB connection string. This can be:
+    
+    **MongoDB Atlas (Cloud):**
+    ```
+    mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/teamup?retryWrites=true&w=majority
+    ```
+    
+    **Local MongoDB:**
+    ```
+    mongodb://localhost:27017/teamup
+    ```
+    
+    Make sure to replace `<username>` and `<password>` with your actual credentials.
+  </Accordion>
+  
+  <Accordion title="AUTH_GOOGLE_ID & AUTH_GOOGLE_SECRET - OAuth Configuration">
+    Your Google OAuth 2.0 credentials from Google Cloud Console:
+    
+    1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+    2. Create a new project or select existing one
+    3. Navigate to **APIs & Services** > **Credentials**
+    4. Click **Create Credentials** > **OAuth client ID**
+    5. Select **Web application**
+    6. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
+    7. For production, also add: `https://yourdomain.com/api/auth/callback/google`
+    8. Copy the **Client ID** and **Client Secret**
+  </Accordion>
+  
+  <Accordion title="VERCEL_URL (Optional)">
+    This is automatically set by Vercel during deployment. Only needed if you're deploying to Vercel.
+    
+    For local development, this can be omitted.
+  </Accordion>
+</AccordionGroup>
+
+### 4. Database Setup
+
+#### Option A: MongoDB Atlas (Cloud)
+
+<Steps>
+  <Step title="Create Atlas Account">
+    Sign up for a free account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+  </Step>
+  
+  <Step title="Create Cluster">
+    Create a new cluster (the free tier M0 is sufficient for development)
+  </Step>
+  
+  <Step title="Configure Network Access">
+    Add your IP address to the IP whitelist, or allow access from anywhere (0.0.0.0/0) for development
+  </Step>
+  
+  <Step title="Create Database User">
+    Create a database user with read and write permissions
+  </Step>
+  
+  <Step title="Get Connection String">
+    Click "Connect" > "Connect your application" and copy the connection string
+  </Step>
+</Steps>
+
+#### Option B: Local MongoDB
+
+<Steps>
+  <Step title="Install MongoDB">
+    Download and install MongoDB from [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+  </Step>
+  
+  <Step title="Start MongoDB Service">
+    <CodeGroup>
+    
+    ```bash macOS (Homebrew)
+    brew services start mongodb-community
+    ```
+    
+    ```bash Linux (systemd)
+    sudo systemctl start mongod
+    ```
+    
+    ```bash Windows
+    # MongoDB runs as a Windows service after installation
+    net start MongoDB
+    ```
+    
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Verify Connection">
+    Test the connection:
+    
+    ```bash
+    mongosh
+    ```
+  </Step>
+</Steps>
+
+### 5. Running the Application
+
+#### Development Mode
+
+Run the application in development mode with hot reloading:
+
+<CodeGroup>
+
+```bash npm
+npm run dev
+```
+
+```bash yarn
+yarn dev
+```
+
+```bash pnpm
+pnpm dev
+```
+
+</CodeGroup>
+
+The application will be available at [http://localhost:3000](http://localhost:3000)
+
+#### Production Build
+
+Build and run the application for production:
+
+<CodeGroup>
+
+```bash npm
+npm run build
+npm run start
+```
+
+```bash yarn
+yarn build
+yarn start
+```
+
+```bash pnpm
+pnpm build
+pnpm start
+```
+
+</CodeGroup>
+
+#### Linting
+
+Run ESLint to check for code quality issues:
+
+<CodeGroup>
+
+```bash npm
+npm run lint
+```
+
+```bash yarn
+yarn lint
+```
+
+```bash pnpm
+pnpm lint
+```
+
+</CodeGroup>
+
+## Troubleshooting Common Issues
+
+<AccordionGroup>
+  <Accordion title="Module not found errors">
+    If you encounter module not found errors:
+    
+    1. Delete `node_modules` and package lock file:
+       ```bash
+       rm -rf node_modules package-lock.json
+       ```
+    2. Clear npm cache:
+       ```bash
+       npm cache clean --force
+       ```
+    3. Reinstall dependencies:
+       ```bash
+       npm install
+       ```
+  </Accordion>
+  
+  <Accordion title="MongoDB connection timeout">
+    If MongoDB connection times out:
+    
+    - **For MongoDB Atlas:** Check that your IP address is whitelisted in Network Access settings
+    - **For local MongoDB:** Ensure MongoDB service is running
+    - Verify the connection string format is correct
+    - Check firewall settings aren't blocking port 27017
+  </Accordion>
+  
+  <Accordion title="Google OAuth redirect URI mismatch">
+    If you get a redirect URI mismatch error:
+    
+    1. Go to Google Cloud Console > Credentials
+    2. Edit your OAuth 2.0 Client ID
+    3. Add the exact redirect URI shown in the error message
+    4. Common URIs to add:
+       - `http://localhost:3000/api/auth/callback/google`
+       - `https://yourdomain.com/api/auth/callback/google`
+  </Accordion>
+  
+  <Accordion title="TypeScript errors during build">
+    If you encounter TypeScript errors:
+    
+    1. Ensure you're using TypeScript 5.x:
+       ```bash
+       npm install -D typescript@latest
+       ```
+    2. Clear Next.js cache:
+       ```bash
+       rm -rf .next
+       ```
+    3. Rebuild:
+       ```bash
+       npm run build
+       ```
+  </Accordion>
+  
+  <Accordion title="Port already in use">
+    If port 3000 is already in use:
+    
+    **Option 1:** Kill the process using port 3000
+    ```bash
+    # On macOS/Linux
+    lsof -ti:3000 | xargs kill -9
+    
+    # On Windows
+    netstat -ano | findstr :3000
+    taskkill /PID <PID> /F
+    ```
+    
+    **Option 2:** Use a different port
+    ```bash
+    PORT=3001 npm run dev
+    ```
+  </Accordion>
+  
+  <Accordion title="File upload not working">
+    If file uploads fail:
+    
+    - Check that the uploads directory exists and has write permissions
+    - Verify file size limits in your configuration
+    - Ensure formidable is properly installed:
+      ```bash
+      npm install formidable @types/formidable
+      ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart Guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Follow the quickstart guide to create your first project
+  </Card>
+  <Card
+    title="Authentication Setup"
+    icon="lock"
+    href="/features/authentication"
+  >
+    Learn more about authentication configuration
+  </Card>
+  <Card
+    title="Project Management"
+    icon="folder-tree"
+    href="/features/projects"
+  >
+    Understand how to manage projects and teams
+  </Card>
+  <Card
+    title="Team Management"
+    icon="users"
+    href="/features/team-management"
+  >
+    Learn about managing teams and roles
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [NextAuth.js Documentation](https://next-auth.js.org/)
+- [MongoDB Documentation](https://docs.mongodb.com/)
+- [Material-UI Documentation](https://mui.com/)

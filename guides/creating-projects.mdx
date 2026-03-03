@@ -1,0 +1,169 @@
+---
+title: 'Creating Projects'
+description: 'Learn how to create and set up new projects in TeamUp'
+icon: 'folder-plus'
+---
+
+Projects in TeamUp are collaborative workspaces where teams can organize tasks, track progress, and work together effectively. This guide walks you through creating your first project.
+
+## Getting Started
+
+Before creating a project, make sure you have a TeamUp account and are signed in. You'll automatically become the project owner and have full control over project settings and team management.
+
+<Steps>
+  <Step title="Navigate to Project Creation">
+    From your dashboard, click the **Create New Project** button or navigate to the projects section and select **+ New Project**.
+  </Step>
+
+  <Step title="Enter Project Details">
+    Fill out the project information form:
+
+    ### Project Title
+    Give your project a clear, descriptive name that reflects its purpose.
+
+    ```text
+    Example: "Mobile App Redesign Q1 2024"
+    ```
+
+    ### Project Description
+    Add a detailed description using markdown formatting. This helps team members understand the project's goals and scope.
+
+    <Tip>
+      You can use markdown to format your description with headers, lists, links, and more. This makes it easier to organize project information.
+    </Tip>
+
+    ```markdown
+    ## Project Goals
+    - Redesign mobile app UI/UX
+    - Improve user engagement by 30%
+    - Launch by end of Q1
+
+    ## Key Features
+    - New onboarding flow
+    - Simplified navigation
+    - Dark mode support
+    ```
+  </Step>
+
+  <Step title="Add Initial Team Members">
+    Search for team members by their email address to add them to your project. You can add multiple contributors during project creation or add them later.
+
+    <Info>
+      Team members must have a TeamUp account with the email address you're searching for. If they don't appear in search results, invite them to sign up first.
+    </Info>
+
+    ### How to Add Members
+    1. Type an email address in the search field
+    2. Select the user from the search results
+    3. Click **Add** to include them in the project
+    4. Repeat for additional team members
+  </Step>
+
+  <Step title="Assign Project Roles">
+    Configure roles for your team members to control their permissions:
+
+    ### Available Roles
+
+    <AccordionGroup>
+      <Accordion title="Owner" icon="crown">
+        - Full control over the project
+        - Can delete the project
+        - Can manage all team members and roles
+        - Can approve tasks
+        - Automatically assigned to project creator
+      </Accordion>
+
+      <Accordion title="Maintainer" icon="shield">
+        - Can approve submitted tasks
+        - Can add and remove contributors
+        - Can update project settings
+        - Cannot delete the project
+      </Accordion>
+
+      <Accordion title="Contributor" icon="user">
+        - Can create and complete tasks
+        - Can submit tasks for review
+        - Can view project dashboard and statistics
+        - Cannot approve tasks or manage team members
+      </Accordion>
+    </AccordionGroup>
+
+    <Note>
+      As the project owner, you're automatically added as both owner and maintainer. You must assign at least one maintainer who can approve tasks.
+    </Note>
+  </Step>
+
+  <Step title="Review and Create">
+    Double-check your project details:
+    - Project title and description are accurate
+    - All required team members are added
+    - Roles are correctly assigned
+    - At least one maintainer is designated
+
+    Click **Create Project** to finalize. Your new project will be immediately available to all team members.
+  </Step>
+</Steps>
+
+## After Project Creation
+
+Once your project is created, you can:
+
+- Start creating tasks and assigning them to team members
+- Update the project description as needs evolve
+- Add more team members at any time
+- View project statistics and progress on the dashboard
+
+<Tip>
+  Consider setting up your project structure and creating initial tasks right after creation to give your team clear direction from day one.
+</Tip>
+
+## Best Practices
+
+### Write Clear Descriptions
+Use your project description to document:
+- Project objectives and success criteria
+- Important deadlines and milestones
+- Links to external resources (design files, documentation, etc.)
+- Team communication guidelines
+
+### Choose the Right Team Size
+Start with core team members and add others as needed. Smaller teams are easier to coordinate initially.
+
+### Assign Maintainers Strategically
+Choose maintainers who:
+- Understand the project requirements
+- Are available to review and approve tasks regularly
+- Can make decisions about task completion
+
+### Set Expectations Early
+Clearly communicate in your project description:
+- Task submission and approval workflows
+- Response time expectations
+- Definition of "done" for tasks
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Can't find a team member in search">
+    The user must have a TeamUp account with that email address. Ask them to sign up first, then add them to your project.
+  </Accordion>
+
+  <Accordion title="Need to change project details after creation">
+    You can update the project description anytime from the project settings. The project title and owner cannot be changed after creation.
+  </Accordion>
+
+  <Accordion title="Forgot to add a maintainer">
+    No problem! You can add maintainers after project creation through the team management interface. See [Managing Teams](/guides/managing-teams) for details.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Managing Teams" icon="users" href="/guides/managing-teams">
+    Learn how to add, remove, and manage team members and their roles
+  </Card>
+  <Card title="Task Workflows" icon="list-check" href="/guides/task-workflows">
+    Understand how to create, assign, and complete tasks in your project
+  </Card>
+</CardGroup>

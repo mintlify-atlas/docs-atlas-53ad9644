@@ -1,0 +1,767 @@
+---
+title: 'API Overview'
+description: 'Next.js API routes architecture, patterns, and error handling in TeamUp'
+---
+
+## Overview
+
+TeamUp uses Next.js 14 App Router API routes for backend functionality. All API endpoints follow RESTful conventions and return JSON responses.
+
+<Note>
+  API routes are located in `src/app/api/` and use the Next.js route handler convention with `route.ts` files.
+</Note>
+
+## API Structure
+
+TeamUp's API is organized into logical resource groups:
+
+```
+src/app/api/
+├── auth/
+│   ├── [...nextauth]/route.ts    # NextAuth.js handlers
+│   └── signup/route.ts           # User registration
+├── project/
+│   ├── route.ts                  # Project CRUD operations
+│   └── [id]/
+│       ├── route.ts              # Single project operations
+│       ├── stats/route.ts        # Project statistics
+│       ├── dashboard/route.ts    # Project dashboard data
+│       └── delete/route.ts       # Project deletion
+├── task/
+│   ├── route.ts                  # Task CRUD operations
+│   ├── submit/route.ts           # Task submission
+│   └── approve/route.ts          # Task approval
+├── userinfo/route.ts             # User information
+├── user-search/route.ts          # User search functionality
+├── create-project/route.ts       # Project creation
+└── utils/
+    ├── errorHandler.ts           # Error handling utilities
+    ├── apiResponse.ts            # Response formatting
+    └── apiHandler.ts             # Common API patterns
+```
+
+## Route Handler Format
+
+Next.js App Router uses HTTP method-named exports:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+
+// GET /api/resource
+export async function GET(request: NextRequest) {
+  return NextResponse.json({ data: 'value' });
+}
+
+// POST /api/resource
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  return NextResponse.json({ created: true });
+}
+
+// PUT /api/resource
+export async function PUT(request: NextRequest) {
+  return NextResponse.json({ updated: true });
+}
+
+// DELETE /api/resource
+export async function DELETE(request: NextRequest) {
+  return NextResponse.json({ deleted: true });
+}
+```
+
+## Common Patterns
+
+### Pattern 1: Database Connection
+
+All routes that interact with MongoDB follow this pattern:
+
+```typescript
+import { connectDB } from '@/config/db';
+import mongoose from 'mongoose';
+
+export async function GET(request: NextRequest) {
+  try {
+    // Use the connection helper
+    await connectDB();
+    
+    // Alternative: Manual connection check
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(process.env.MONGODB_URI+'', {
+        serverSelectionTimeoutMS: 15000,
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 15000,
+      });
+    }
+    
+    // Proceed with database operations
+    // ...
+  } catch (error) {
+    // Handle errors
+  }
+}
+```
+
+<Accordion title="Why check readyState?">
+  MongoDB connections persist across requests in Next.js. Checking `readyState !== 1` prevents redundant connection attempts and improves performance.
+  
+  **Connection States**:
+  - `0` = disconnected
+  - `1` = connected
+  - `2` = connecting
+  - `3` = disconnecting
+</Accordion>
+
+### Pattern 2: Error Handling
+
+TeamUp uses utility functions for consistent error handling.
+
+#### Error Handler Utility
+
+From `src/app/api/utils/errorHandler.ts`:
+
+```typescript
+export const handleApiError = (error: any) => {
+    console.error('API Error:', error);
+    return {
+      success: false,
+      message: error.message || 'Internal server error',
+      status: error.status || 500
+    };
+};
+```
+
+#### Usage in Routes
+
+```typescript
+import { handleApiError } from '@/app/api/utils/errorHandler';
+import { createApiResponse } from '@/app/api/utils/apiResponse';
+
+export async function GET(request: NextRequest) {
+  try {
+    // Your logic here
+    return NextResponse.json(
+      createApiResponse(true, data, 'Success message'),
+      { status: 200 }
+    );
+  } catch (error) {
+    const errorResponse = handleApiError(error);
+    return NextResponse.json(
+      createApiResponse(false, null, errorResponse.message, errorResponse.status),
+      { status: errorResponse.status }
+    );
+  }
+}
+```
+
+### Pattern 3: API Response Format
+
+TeamUp uses a standardized response format across all endpoints.
+
+#### Response Type Definition
+
+From `src/app/api/utils/apiResponse.ts`:
+
+```typescript
+export interface ApiResponse<T = any> {
+    success: boolean;
+    data?: T;
+    message?: string;
+    status: number;
+}
+
+export function createApiResponse<T>(
+    success: boolean,
+    data?: T,
+    message?: string,
+    status: number = 200
+): ApiResponse<T> {
+    return {
+      success,
+      data,
+      message,
+      status
+    };
+}
+```
+
+#### Response Examples
+
+<CodeGroup>
+```json Success Response
+{
+  "success": true,
+  "data": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "John Doe",
+    "email": "john@example.com"
+  },
+  "message": "User retrieved successfully",
+  "status": 200
+}
+```
+
+```json Error Response
+{
+  "success": false,
+  "message": "User not found",
+  "status": 404
+}
+```
+
+```json Validation Error
+{
+  "success": false,
+  "message": "Invalid email format",
+  "status": 400
+}
+```
+</CodeGroup>
+
+### Pattern 4: Query Parameters
+
+Extract query parameters from the request URL:
+
+```typescript
+export async function GET(request: NextRequest) {
+  const queryParams = new URLSearchParams(request.nextUrl.searchParams);
+  const id = queryParams.get('id');
+  const limit = queryParams.get('limit') || '10';
+  
+  // Build filter based on params
+  const filter: any = {};
+  if (id) filter._id = id;
+  
+  const results = await Model.find(filter).limit(parseInt(limit));
+  return NextResponse.json({ results });
+}
+```
+
+**Example Request**: `GET /api/project?id=123&limit=20`
+
+### Pattern 5: Request Body Parsing
+
+Parse JSON body from POST/PUT requests:
+
+```typescript
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  
+  // Extract and validate fields
+  const { title, description, owner } = body;
+  
+  if (!title || !owner) {
+    return NextResponse.json(
+      { error: 'Missing required fields' },
+      { status: 400 }
+    );
+  }
+  
+  // Create resource
+  const newResource = await Model.create({ title, description, owner });
+  return NextResponse.json({ created: true, resource: newResource });
+}
+```
+
+### Pattern 6: Dynamic Routes
+
+Handle dynamic route parameters:
+
+```typescript
+// File: src/app/api/project/[id]/route.ts
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const projectId = params.id;
+  
+  const project = await Project.findById(projectId);
+  
+  if (!project) {
+    return NextResponse.json(
+      { error: 'Project not found' },
+      { status: 404 }
+    );
+  }
+  
+  return NextResponse.json({ project });
+}
+```
+
+**Example Request**: `GET /api/project/507f1f77bcf86cd799439011`
+
+## Authentication Requirements
+
+Most API routes are protected by middleware. See [Authentication](/developers/authentication) for details.
+
+### Protected Routes
+
+These routes require authentication:
+
+- All `/api/*` routes (except `/api/auth/callback/*`)
+- User info and search endpoints
+- Project and task CRUD operations
+- File upload endpoints
+
+### Public Routes
+
+These routes are accessible without authentication:
+
+- `/api/auth/*` - NextAuth.js authentication endpoints
+- `/api/auth/callback/*` - OAuth callback handlers
+
+### Checking Authentication in Routes
+
+While middleware handles most authentication, you can check session in routes:
+
+```typescript
+import { auth } from '@/auth';
+
+export async function GET(request: NextRequest) {
+  const session = await auth();
+  
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+  
+  // Proceed with authenticated logic
+  const userEmail = session.user.email;
+  // ...
+}
+```
+
+## Request/Response Formats
+
+### Standard HTTP Status Codes
+
+TeamUp uses standard HTTP status codes:
+
+| Code | Meaning | Usage |
+|------|---------|-------|
+| 200 | OK | Successful GET, PUT, or PATCH |
+| 201 | Created | Successful POST creating new resource |
+| 204 | No Content | Successful DELETE |
+| 400 | Bad Request | Invalid request data or parameters |
+| 401 | Unauthorized | Missing or invalid authentication |
+| 404 | Not Found | Resource doesn't exist |
+| 500 | Internal Server Error | Server-side error |
+
+### Content-Type Headers
+
+All requests and responses use JSON:
+
+```typescript
+// Request headers (automatic with fetch)
+Content-Type: application/json
+
+// Response headers (set by NextResponse.json())
+Content-Type: application/json
+```
+
+## Rate Limiting
+
+TeamUp implements rate limiting through middleware to prevent abuse.
+
+From `src/middleware.ts`:
+
+```typescript
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { auth } from '../auth'
+
+export default async function middleware(req: NextRequest) {
+    const session = await auth();
+    const { pathname } = req.nextUrl;
+
+    // Authentication checks
+    if (!session?.user && 
+        (pathname.startsWith('/api') || pathname.startsWith('/home')) && 
+        !pathname.startsWith('/api/auth/callback')) {
+        const url = req.nextUrl.clone();
+        url.pathname = '/log-in';
+        return NextResponse.redirect(url);
+    }
+
+    // Additional rate limiting logic could be added here
+    return NextResponse.next();
+}
+```
+
+<Note>
+  Currently, rate limiting is implemented at the middleware level. For production deployments, consider using additional rate limiting middleware or Vercel's built-in protection.
+</Note>
+
+### Rate Limiting Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Express Rate Limit" icon="gauge">
+    TeamUp includes `express-rate-limit` in dependencies for enhanced rate limiting:
+    ```bash
+    npm install express-rate-limit
+    ```
+  </Card>
+  
+  <Card title="Per-User Limits" icon="user">
+    Implement per-user rate limits based on session:
+    ```typescript
+    const userEmail = session.user.email;
+    // Check rate limit for this user
+    ```
+  </Card>
+  
+  <Card title="Different Limits per Endpoint" icon="layer-group">
+    Set stricter limits on expensive operations:
+    - Project creation: 10/hour
+    - Task updates: 100/hour
+    - Queries: 1000/hour
+  </Card>
+  
+  <Card title="Return Rate Limit Headers" icon="info">
+    Include rate limit info in responses:
+    ```typescript
+    X-RateLimit-Limit: 100
+    X-RateLimit-Remaining: 87
+    X-RateLimit-Reset: 1625097600
+    ```
+  </Card>
+</CardGroup>
+
+## Real-World Examples
+
+### Example 1: Get Project Details
+
+From `src/app/api/project/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { Project } from '@/models/projectModel';
+import { connectDB } from '@/config/db';
+import { handleApiError } from "@/app/api/utils/errorHandler";
+import { createApiResponse } from '@/app/api/utils/apiResponse';
+
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60 // Extend timeout to 60 seconds
+
+export async function GET(request: NextRequest) {
+  try {
+    await connectDB();
+    
+    const queryParams = new URLSearchParams(request.nextUrl.searchParams);
+    const id = queryParams.get('id');
+    
+    const filter: any = {};
+    if (id) filter._id = id;
+    
+    const project = await Project.find(filter);
+    
+    return NextResponse.json(
+      createApiResponse(true, project, 'Project retrieved successfully'),
+      { status: 200 }
+    );
+  } catch (error) {
+    const errorResponse = handleApiError(error);
+    return NextResponse.json(
+      createApiResponse(false, null, errorResponse.message, errorResponse.status),
+      { status: errorResponse.status }
+    );
+  }
+}
+```
+
+### Example 2: Update Project Description
+
+From `src/app/api/project/route.ts`:
+
+```typescript
+export async function PUT(request: NextRequest) {
+  try {
+    await connectDB();
+    
+    const body = await request.json();
+    const { projectId, description } = body;
+
+    if (!projectId || description === undefined) {
+      return NextResponse.json(
+        { message: 'Project ID and description are required' },
+        { status: 400 }
+      );
+    }
+
+    const updatedProject = await Project.findByIdAndUpdate(
+      projectId,
+      { description: description },
+      { new: true } // Returns the updated document
+    );
+
+    if (!updatedProject) {
+      return NextResponse.json(
+        { message: 'Project not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: 'Description updated successfully', project: updatedProject },
+      { status: 200 }
+    );
+
+  } catch (error) {
+    console.error('Error updating project description:', error);
+    return NextResponse.json(
+      { message: 'Error updating project description' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Example 3: Create Project with User Updates
+
+From `src/app/api/create-project/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { Project } from '@/models/projectModel';
+import { User } from '@/models/userModel';
+import mongoose from 'mongoose';
+
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
+export async function POST(request: NextRequest) {
+    try {
+        if (mongoose.connection.readyState !== 1) {
+            await mongoose.connect(process.env.MONGODB_URI+'', {
+                serverSelectionTimeoutMS: 15000,
+                socketTimeoutMS: 45000,
+                connectTimeoutMS: 15000,
+            });
+        }
+        
+        const body = await request.json();
+        const projectData = {
+            title: body.title || null,
+            description: body.description || null,
+            owner: body.owner || null,
+            maintainers: body.maintainers || null,
+            contributors: body.contributors || null,
+            tasks: body.tasks || null,
+            contributions: body.contributions || null,
+        };
+        
+        // Create project
+        const newProject = new Project(projectData);
+        const projectCreated = await newProject.save();
+        
+        // Update all contributors with new project ID
+        projectData.contributors.forEach(async(contributorEmailId: string) => {
+            await User.findOneAndUpdate(
+                { emailId: contributorEmailId },
+                { $push: { projects: projectCreated._id } }
+            );
+        });
+        
+        return NextResponse.json(
+            { message: 'Project created successfully!', project: newProject },
+            { status: 201 }
+        );
+    } catch (error) {
+        console.error('Error during project creation:', error);
+        return NextResponse.json(
+            { message: 'Error creating project' },
+            { status: 500 }
+        );
+    }
+}
+```
+
+<Note>
+  Notice the pattern: Create main resource, then update related resources. This maintains referential integrity between collections.
+</Note>
+
+## Performance Optimization
+
+### 1. Route Configuration
+
+Optimize route behavior with exports:
+
+```typescript
+// Force dynamic rendering (no static optimization)
+export const dynamic = 'force-dynamic'
+
+// Extend timeout for long-running operations
+export const maxDuration = 60 // 60 seconds
+
+// Set runtime (Node.js vs Edge)
+export const runtime = 'nodejs' // or 'edge'
+```
+
+### 2. Database Query Optimization
+
+```typescript
+// Use lean() for read-only queries
+const projects = await Project.find(filter).lean();
+
+// Select only needed fields
+const users = await User.find()
+  .select('name emailId profilePic')
+  .lean();
+
+// Use indexes effectively
+const project = await Project.findOne({ owner: email, title: title });
+// Uses the compound index { owner: 1, title: 1 }
+```
+
+### 3. Connection Pooling
+
+See [Database Schema - Performance Considerations](/developers/database-schema#performance-considerations) for connection pooling configuration.
+
+### 4. Response Caching
+
+For frequently accessed data:
+
+```typescript
+export async function GET(request: NextRequest) {
+  const data = await getDataWithCache();
+  
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'
+    }
+  });
+}
+```
+
+## Error Handling Strategies
+
+### 1. Input Validation
+
+```typescript
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  
+  // Validate required fields
+  if (!body.title || !body.owner) {
+    return NextResponse.json(
+      { error: 'Missing required fields: title, owner' },
+      { status: 400 }
+    );
+  }
+  
+  // Validate data types
+  if (typeof body.title !== 'string') {
+    return NextResponse.json(
+      { error: 'Title must be a string' },
+      { status: 400 }
+    );
+  }
+  
+  // Proceed with valid data
+}
+```
+
+### 2. Database Errors
+
+```typescript
+try {
+  await connectDB();
+  const user = await User.findOne({ emailId });
+} catch (error) {
+  if (error.code === 11000) {
+    // Duplicate key error
+    return NextResponse.json(
+      { error: 'User already exists' },
+      { status: 409 }
+    );
+  }
+  
+  // Generic database error
+  return NextResponse.json(
+    { error: 'Database error' },
+    { status: 500 }
+  );
+}
+```
+
+### 3. Mongoose Validation Errors
+
+```typescript
+try {
+  const newProject = new Project(projectData);
+  await newProject.save();
+} catch (error) {
+  if (error.name === 'ValidationError') {
+    const errors = Object.values(error.errors).map(e => e.message);
+    return NextResponse.json(
+      { error: 'Validation failed', details: errors },
+      { status: 400 }
+    );
+  }
+}
+```
+
+## Testing API Endpoints
+
+### Using cURL
+
+```bash
+# GET request
+curl http://localhost:3000/api/project?id=123
+
+# POST request
+curl -X POST http://localhost:3000/api/create-project \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "New Project",
+    "owner": "user@example.com",
+    "maintainers": ["user@example.com"],
+    "contributors": ["user@example.com"]
+  }'
+
+# PUT request
+curl -X PUT http://localhost:3000/api/project \
+  -H "Content-Type: application/json" \
+  -d '{"projectId": "123", "description": "Updated description"}'
+```
+
+### Using Fetch in Browser
+
+```javascript
+// GET request
+fetch('/api/project?id=123')
+  .then(res => res.json())
+  .then(data => console.log(data));
+
+// POST request
+fetch('/api/create-project', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    title: 'New Project',
+    owner: 'user@example.com',
+    maintainers: ['user@example.com'],
+    contributors: ['user@example.com']
+  })
+})
+  .then(res => res.json())
+  .then(data => console.log(data));
+```
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Environment Setup" icon="gear" href="/developers/environment-setup">
+    Set up your development environment
+  </Card>
+  
+  <Card title="Database Schema" icon="database" href="/developers/database-schema">
+    Understand the data models
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/developers/authentication">
+    Learn about authentication flows
+  </Card>
+</CardGroup>

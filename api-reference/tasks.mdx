@@ -1,0 +1,524 @@
+---
+title: 'Tasks'
+description: 'Task management endpoints'
+---
+
+## POST /api/task
+
+Create a new task with optional file upload.
+
+### Content Type
+
+`multipart/form-data`
+
+### Form Fields
+
+<ParamField body="description" type="string" required>
+  Task description or title
+</ParamField>
+
+<ParamField body="assignees" type="string" required>
+  JSON stringified array of assignee email addresses
+  
+  Example: `["user1@example.com", "user2@example.com"]`
+</ParamField>
+
+<ParamField body="projectName" type="string" required>
+  Name of the project this task belongs to
+</ParamField>
+
+<ParamField body="projectId" type="string" required>
+  ID of the project this task belongs to
+</ParamField>
+
+<ParamField body="file" type="file">
+  Optional file attachment (max 10MB)
+  
+  Supported formats: any file type with extension preserved
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the task was created successfully
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+<ResponseField name="task" type="object">
+  Created task object
+  
+  <Expandable title="task properties">
+    <ResponseField name="id" type="string">
+      Task's unique identifier
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Task description
+    </ResponseField>
+    
+    <ResponseField name="assignees" type="array">
+      Array of assignee email addresses
+    </ResponseField>
+    
+    <ResponseField name="fileUrl" type="string">
+      URL path to uploaded file (e.g., `/uploads/1234567890-filename.pdf`)
+      
+      Returns `null` if no file was uploaded
+    </ResponseField>
+    
+    <ResponseField name="projectName" type="string">
+      Name of the associated project
+    </ResponseField>
+    
+    <ResponseField name="projectId" type="string">
+      ID of the associated project
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of task creation
+    </ResponseField>
+    
+    <ResponseField name="submitted" type="boolean">
+      Whether the task has been submitted for review (initially `false`)
+    </ResponseField>
+    
+    <ResponseField name="approvals" type="array">
+      Array of maintainer emails who approved this task (initially empty)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST https://your-domain.com/api/task \
+  -F "description=Implement user authentication" \
+  -F "assignees=[\"dev1@example.com\",\"dev2@example.com\"]" \
+  -F "projectName=TeamUp Mobile App" \
+  -F "projectId=507f191e810c19729de860ea" \
+  -F "file=@/path/to/requirements.pdf"
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "message": "Task created successfully",
+  "task": {
+    "id": "507f191e810c19729de860eb",
+    "description": "Implement user authentication",
+    "assignees": ["dev1@example.com", "dev2@example.com"],
+    "fileUrl": "/uploads/1705315800000-requirements.pdf",
+    "projectName": "TeamUp Mobile App",
+    "projectId": "507f191e810c19729de860ea",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "submitted": false,
+    "approvals": []
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  ```json
+  {
+    "success": false,
+    "message": "Missing required fields"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "success": false,
+    "message": "Error creating task"
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+- Files are uploaded to `public/uploads/` directory
+- File naming format: `{timestamp}-{originalname}`
+- Maximum file size: 10MB
+- Automatically updates each assignee's `tasks` array
+- Automatically adds task to project's `tasks` array
+- Extended timeout to 60 seconds for file upload operations
+
+---
+
+## GET /api/task
+
+Retrieve task(s) by task ID or project ID.
+
+### Query Parameters
+
+<ParamField query="id" type="string">
+  Task ID to retrieve a specific task
+</ParamField>
+
+<ParamField query="projectId" type="string">
+  Project ID to retrieve all tasks for a project
+</ParamField>
+
+### Response (Single Task)
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="task" type="object">
+  Task object
+  
+  <Expandable title="task properties">
+    <ResponseField name="id" type="string">
+      Task's unique identifier
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Task description
+    </ResponseField>
+    
+    <ResponseField name="assignees" type="array">
+      Array of assignee email addresses
+    </ResponseField>
+    
+    <ResponseField name="fileUrl" type="string">
+      URL path to uploaded file or `null`
+    </ResponseField>
+    
+    <ResponseField name="projectName" type="string">
+      Name of the associated project
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of task creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response (Multiple Tasks)
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="tasks" type="array">
+  Array of task objects (see task properties above)
+</ResponseField>
+
+### Example Request (By Task ID)
+
+```bash
+curl https://your-domain.com/api/task?id=507f191e810c19729de860eb
+```
+
+### Example Response (Single Task)
+
+```json
+{
+  "success": true,
+  "task": {
+    "id": "507f191e810c19729de860eb",
+    "description": "Implement user authentication",
+    "assignees": ["dev1@example.com", "dev2@example.com"],
+    "fileUrl": "/uploads/1705315800000-requirements.pdf",
+    "projectName": "TeamUp Mobile App",
+    "createdAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+### Example Request (By Project ID)
+
+```bash
+curl https://your-domain.com/api/task?projectId=507f191e810c19729de860ea
+```
+
+### Example Response (Multiple Tasks)
+
+```json
+{
+  "success": true,
+  "tasks": [
+    {
+      "id": "507f191e810c19729de860eb",
+      "description": "Implement user authentication",
+      "assignees": ["dev1@example.com"],
+      "fileUrl": "/uploads/1705315800000-requirements.pdf",
+      "projectName": "TeamUp Mobile App",
+      "projectId": "507f191e810c19729de860ea",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "submitted": true,
+      "approvals": ["maintainer@example.com"]
+    },
+    {
+      "id": "507f191e810c19729de860ec",
+      "description": "Design database schema",
+      "assignees": ["dev2@example.com"],
+      "fileUrl": null,
+      "projectName": "TeamUp Mobile App",
+      "projectId": "507f191e810c19729de860ea",
+      "createdAt": "2024-01-15T11:00:00.000Z",
+      "submitted": false,
+      "approvals": []
+    }
+  ]
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  ```json
+  {
+    "success": false,
+    "message": "Task ID is required"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "success": false,
+    "message": "Task not found"
+  }
+  ```
+  or
+  ```json
+  {
+    "success": false,
+    "message": "Project not found"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "success": false,
+    "message": "Error fetching task"
+  }
+  ```
+</ResponseField>
+
+---
+
+## POST /api/task/submit
+
+Submit a task for review by maintainers.
+
+### Request Body
+
+<ParamField body="taskId" type="string" required>
+  ID of the task to submit
+</ParamField>
+
+<ParamField body="userEmail" type="string">
+  Email of the user submitting (currently not used in logic)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Response data object
+  
+  <Expandable title="data properties">
+    <ResponseField name="task" type="object">
+      Updated task object with `submitted` field set to `true`
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST https://your-domain.com/api/task/submit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "taskId": "507f191e810c19729de860eb",
+    "userEmail": "dev1@example.com"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "task": {
+      "_id": "507f191e810c19729de860eb",
+      "description": "Implement user authentication",
+      "assignees": ["dev1@example.com"],
+      "fileUrl": "/uploads/1705315800000-requirements.pdf",
+      "projectName": "TeamUp Mobile App",
+      "projectId": "507f191e810c19729de860ea",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "submitted": true,
+      "approvals": []
+    }
+  },
+  "message": "Task submitted successfully"
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "message": "Task not found",
+    "status": 404
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "message": "Error submitting task",
+    "status": 500
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+- Sets the task's `submitted` field to `true`
+- Does not validate if the user is actually an assignee
+- Once submitted, task is ready for maintainer approval
+
+---
+
+## POST /api/task/approve
+
+Approve a submitted task (maintainers only).
+
+### Request Body
+
+<ParamField body="taskId" type="string" required>
+  ID of the task to approve
+</ParamField>
+
+<ParamField body="maintainerEmail" type="string" required>
+  Email address of the maintainer approving the task
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Full updated task object with the maintainer added to approvals array
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST https://your-domain.com/api/task/approve \
+  -H "Content-Type: application/json" \
+  -d '{
+    "taskId": "507f191e810c19729de860eb",
+    "maintainerEmail": "maintainer@example.com"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "507f191e810c19729de860eb",
+    "description": "Implement user authentication",
+    "assignees": ["dev1@example.com"],
+    "fileUrl": "/uploads/1705315800000-requirements.pdf",
+    "projectName": "TeamUp Mobile App",
+    "projectId": "507f191e810c19729de860ea",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "submitted": true,
+    "approvals": ["maintainer@example.com"]
+  },
+  "message": "Task approved successfully"
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "message": "Task not found",
+    "status": 404
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "message": "Error message details",
+    "status": 500
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+- Adds maintainer email to the task's `approvals` array
+- Does not add duplicate approvals (checks if maintainer already approved)
+- Does not validate if the user is actually a project maintainer
+- Multiple maintainers can approve the same task
+
+---
+
+## Task Workflow
+
+The typical task lifecycle in TeamUp:
+
+1. **Creation**: Task is created via `POST /api/task` with `submitted: false`
+2. **Work**: Assignees work on the task
+3. **Submission**: Assignee submits via `POST /api/task/submit`, setting `submitted: true`
+4. **Review**: Maintainers review the task
+5. **Approval**: Maintainers approve via `POST /api/task/approve`, adding their email to `approvals` array
+6. **Completion**: Task is considered complete when approved by required maintainers
+
+## File Upload Configuration
+
+The file upload system uses the `formidable` library with the following configuration:
+
+- **Upload Directory**: `public/uploads/`
+- **Max File Size**: 10MB (10 * 1024 * 1024 bytes)
+- **Extensions**: Preserved from original filename
+- **Filename Format**: `{timestamp}-{originalFilename}`
+- **Access**: Files are publicly accessible via `/uploads/{filename}`

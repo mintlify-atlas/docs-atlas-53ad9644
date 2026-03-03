@@ -1,0 +1,275 @@
+---
+title: 'Authentication'
+description: 'Google OAuth authentication system powered by NextAuth'
+---
+
+## Overview
+
+TeamUp uses NextAuth with Google OAuth for secure, streamlined authentication. Users can sign in with their Google accounts without managing passwords, providing a seamless and secure authentication experience.
+
+## How Authentication Works
+
+TeamUp's authentication is built on NextAuth.js with Google as the OAuth provider. The system handles user sessions, profile management, and secure authentication flows.
+
+### Authentication Configuration
+
+The authentication setup is minimal and straightforward, configured in the `auth.ts` file:
+
+```typescript auth.ts
+import NextAuth from "next-auth"
+import Google from "next-auth/providers/google"
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [Google],
+})
+```
+
+## User Profiles and Sessions
+
+### User Schema
+
+When users authenticate, their information is stored in MongoDB using the following schema:
+
+```typescript userModel.ts
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Please add name'],
+  },
+  emailId: {
+    type: String,
+    required: [true, 'Please add email id'],
+    unique: true,
+  },
+  profilePic: {
+    type: String,
+  },
+  projects: {
+    type: Array,
+  },
+  tasks: {
+    type: Array,
+  },
+  contributions: {
+    type: Array,
+  },
+}, { timestamps: true });
+```
+
+### Key User Fields
+
+- **name**: User's display name from Google account
+- **emailId**: Unique email address (primary identifier)
+- **profilePic**: URL to user's Google profile picture
+- **projects**: Array of project IDs the user is involved in
+- **tasks**: Array of task IDs assigned to the user
+- **contributions**: Array of contribution records
+
+<Note>
+The `emailId` field is indexed and unique, ensuring each user has one account per email address.
+</Note>
+
+## Sign-Up Flow
+
+### Creating New Users
+
+When a user signs up for the first time, TeamUp creates a new user record:
+
+```typescript signup/route.ts
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    const userData = {
+      name: body.name || null,
+      emailId: body.emailId || null,
+      projects: null,
+      tasks: null,
+      contributions: null,
+    };
+
+    const newUser = new User(userData);
+    await newUser.save();
+
+    return NextResponse.json({ 
+      message: 'User Signed Up successfully!', 
+      user: newUser 
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error during user creation:', error);
+    return NextResponse.json({ 
+      message: 'Error Signing Up' 
+    }, { status: 500 });
+  }
+}
+```
+
+### Sign-Up Process
+
+1. User clicks "Sign in with Google"
+2. Redirected to Google OAuth consent screen
+3. Google returns user profile data
+4. TeamUp creates user record if first-time user
+5. User is redirected to the application home page
+
+## Session Management
+
+### Session Handling
+
+NextAuth automatically manages user sessions with the following features:
+
+- **Secure session cookies**: HTTP-only cookies prevent XSS attacks
+- **Automatic token refresh**: Sessions remain valid without manual intervention
+- **Server-side validation**: All requests validate session tokens server-side
+
+### Accessing User Sessions
+
+You can access the current user's session in server components and API routes:
+
+```typescript
+import { auth } from '@/auth'
+
+export default async function ServerComponent() {
+  const session = await auth()
+  
+  if (!session?.user) {
+    // User is not authenticated
+    return <SignInButton />
+  }
+  
+  // User is authenticated
+  return <div>Welcome, {session.user.name}!</div>
+}
+```
+
+<Info>
+Sessions are validated server-side on every request, ensuring secure access control throughout the application.
+</Info>
+
+## Sign-In and Sign-Out
+
+### Signing In
+
+Users can sign in from any page by calling the `signIn` function:
+
+```typescript
+import { signIn } from '@/auth'
+
+// In a server action or API route
+await signIn('google', { redirectTo: '/home' })
+```
+
+### Signing Out
+
+To log out a user and clear their session:
+
+```typescript
+import { signOut } from '@/auth'
+
+// In a server action or API route
+await signOut({ redirectTo: '/' })
+```
+
+## Security Features
+
+### Built-in Protection
+
+TeamUp's authentication includes several security features:
+
+- **OAuth 2.0**: Industry-standard authorization protocol
+- **No password storage**: Passwords managed by Google
+- **CSRF protection**: Built-in CSRF token validation
+- **Secure cookies**: HTTP-only, same-site cookie attributes
+- **Session encryption**: JWT tokens encrypted at rest
+
+<Warning>
+Always validate user sessions on the server-side before performing sensitive operations. Never trust client-side session data alone.
+</Warning>
+
+## User Search and Discovery
+
+TeamUp provides user search functionality for inviting team members:
+
+```typescript user-search/route.ts
+export async function GET(request: NextRequest) {
+  const queryParams = new URLSearchParams(request.nextUrl.searchParams);
+  const searchTerm = queryParams.get('t') || null;
+  const searchTermRegex = new RegExp(searchTerm);
+
+  const filter: any = {};
+  if (searchTermRegex) {
+    filter.emailId = { $regex: searchTermRegex, $options: 'i' };
+  }
+
+  const users = await User.find(filter)
+    .sort({ emailId: 1 })
+    .limit(10);
+
+  return NextResponse.json(users, { status: 200 });
+}
+```
+
+### Search Features
+
+- **Email-based search**: Find users by email address
+- **Case-insensitive**: Matches regardless of capitalization
+- **Limited results**: Returns up to 10 matches
+- **Sorted results**: Alphabetically sorted by email
+
+<Tip>
+When inviting team members, users can search by partial email addresses to quickly find collaborators.
+</Tip>
+
+## Environment Configuration
+
+To set up authentication, configure these environment variables:
+
+```bash .env.local
+AUTH_SECRET=your-auth-secret-key
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+MONGODB_URI=your-mongodb-connection-string
+```
+
+### Required OAuth Setup
+
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com)
+2. Enable Google+ API
+3. Create OAuth 2.0 credentials
+4. Configure authorized redirect URIs
+5. Copy client ID and secret to environment variables
+
+## Best Practices
+
+### Authentication Guidelines
+
+1. **Always validate sessions server-side** before granting access to protected resources
+2. **Use middleware** to protect routes that require authentication
+3. **Handle auth errors gracefully** with clear user messaging
+4. **Keep auth tokens secure** - never expose them in client-side code
+5. **Implement proper redirects** after sign-in and sign-out
+
+### Error Handling
+
+```typescript
+try {
+  const session = await auth()
+  if (!session) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+  // Proceed with authenticated request
+} catch (error) {
+  console.error('Auth error:', error)
+  return NextResponse.json(
+    { error: 'Authentication failed' },
+    { status: 500 }
+  )
+}
+```
+
+<Note>
+Always log authentication errors for debugging while providing user-friendly error messages to the client.
+</Note>

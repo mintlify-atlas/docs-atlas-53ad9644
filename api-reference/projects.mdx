@@ -1,0 +1,698 @@
+---
+title: 'Projects'
+description: 'Project management endpoints'
+---
+
+## POST /api/create-project
+
+Create a new project and associate contributors.
+
+### Request Body
+
+<ParamField body="title" type="string" required>
+  Project title
+</ParamField>
+
+<ParamField body="description" type="string">
+  Project description
+</ParamField>
+
+<ParamField body="owner" type="string" required>
+  Email address of the project owner
+</ParamField>
+
+<ParamField body="maintainers" type="array" required>
+  Array of email addresses of project maintainers
+</ParamField>
+
+<ParamField body="contributors" type="array" required>
+  Array of email addresses of project contributors
+</ParamField>
+
+<ParamField body="tasks" type="array">
+  Array of task IDs (optional, usually empty on creation)
+</ParamField>
+
+<ParamField body="contributions" type="array">
+  Array of contribution records (optional)
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+<ResponseField name="project" type="object">
+  Created project object
+  
+  <Expandable title="project properties">
+    <ResponseField name="_id" type="string">
+      Project's unique identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Project title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Project description
+    </ResponseField>
+    
+    <ResponseField name="owner" type="string">
+      Email address of the project owner
+    </ResponseField>
+    
+    <ResponseField name="maintainers" type="array">
+      Array of maintainer email addresses
+    </ResponseField>
+    
+    <ResponseField name="contributors" type="array">
+      Array of contributor email addresses
+    </ResponseField>
+    
+    <ResponseField name="tasks" type="array">
+      Array of task IDs
+    </ResponseField>
+    
+    <ResponseField name="contributions" type="array">
+      Array of contribution records
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of project creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO timestamp of last update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST https://your-domain.com/api/create-project \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "TeamUp Mobile App",
+    "description": "A mobile application for team collaboration",
+    "owner": "owner@example.com",
+    "maintainers": ["owner@example.com", "maintainer@example.com"],
+    "contributors": ["owner@example.com", "maintainer@example.com", "dev1@example.com"],
+    "tasks": [],
+    "contributions": []
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "message": "Project created successfully!",
+  "project": {
+    "_id": "507f191e810c19729de860ea",
+    "title": "TeamUp Mobile App",
+    "description": "A mobile application for team collaboration",
+    "owner": "owner@example.com",
+    "maintainers": ["owner@example.com", "maintainer@example.com"],
+    "contributors": ["owner@example.com", "maintainer@example.com", "dev1@example.com"],
+    "tasks": [],
+    "contributions": [],
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "message": "Error creating project"
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+- Automatically updates each contributor's `projects` array with the new project ID
+- Extended timeout to 60 seconds for database operations
+
+---
+
+## GET /api/project
+
+Retrieve project(s) by ID or all projects.
+
+### Query Parameters
+
+<ParamField query="id" type="string">
+  Project ID to retrieve specific project
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" or name="data" type="array">
+  Project object or array of projects
+  
+  <Expandable title="project properties">
+    <ResponseField name="_id" type="string">
+      Project's unique identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Project title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Project description
+    </ResponseField>
+    
+    <ResponseField name="owner" type="string">
+      Email address of the project owner
+    </ResponseField>
+    
+    <ResponseField name="maintainers" type="array">
+      Array of maintainer email addresses
+    </ResponseField>
+    
+    <ResponseField name="contributors" type="array">
+      Array of contributor email addresses
+    </ResponseField>
+    
+    <ResponseField name="tasks" type="array">
+      Array of task IDs
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of project creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO timestamp of last update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+### Example Request
+
+```bash
+# Get specific project
+curl https://your-domain.com/api/project?id=507f191e810c19729de860ea
+
+# Get all projects
+curl https://your-domain.com/api/project
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "507f191e810c19729de860ea",
+      "title": "TeamUp Mobile App",
+      "description": "A mobile application for team collaboration",
+      "owner": "owner@example.com",
+      "maintainers": ["owner@example.com", "maintainer@example.com"],
+      "contributors": ["owner@example.com", "maintainer@example.com", "dev1@example.com"],
+      "tasks": ["507f191e810c19729de860eb"],
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "message": "Project retrieved successfully"
+}
+```
+
+---
+
+## POST /api/project
+
+Delete or leave projects.
+
+### Request Body
+
+<ParamField body="userEmail" type="string" required>
+  Email address of the user performing the action
+</ParamField>
+
+<ParamField body="toDelete" type="array">
+  Array of project IDs to delete (owner only)
+</ParamField>
+
+<ParamField body="toLeave" type="array">
+  Array of project IDs to leave (contributors)
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+### Example Request (Delete)
+
+```bash
+curl -X POST https://your-domain.com/api/project \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userEmail": "owner@example.com",
+    "toDelete": ["507f191e810c19729de860ea"]
+  }'
+```
+
+### Example Request (Leave)
+
+```bash
+curl -X POST https://your-domain.com/api/project \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userEmail": "contributor@example.com",
+    "toLeave": ["507f191e810c19729de860ea"]
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "message": "success"
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  ```json
+  {
+    "message": "No action performed"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "message": "Error in deletion process"
+  }
+  ```
+  or
+  ```json
+  {
+    "message": "Error in leaving process"
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+**Delete Operation (`toDelete`):**
+- Removes all tasks associated with the project
+- Removes task references from all users
+- Removes project from all contributors
+- Deletes the project permanently
+
+**Leave Operation (`toLeave`):**
+- Removes user from project contributors and maintainers
+- Deletes tasks where user is the only assignee
+- Removes user from tasks with multiple assignees
+- If last maintainer leaves, owner is automatically added as maintainer
+
+---
+
+## PUT /api/project
+
+Update project description.
+
+### Request Body
+
+<ParamField body="projectId" type="string" required>
+  ID of the project to update
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  New project description
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+<ResponseField name="project" type="object">
+  Updated project object with all fields
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X PUT https://your-domain.com/api/project \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectId": "507f191e810c19729de860ea",
+    "description": "Updated project description with more details"
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "message": "Description updated successfully",
+  "project": {
+    "_id": "507f191e810c19729de860ea",
+    "title": "TeamUp Mobile App",
+    "description": "Updated project description with more details",
+    "owner": "owner@example.com",
+    "maintainers": ["owner@example.com"],
+    "contributors": ["owner@example.com", "dev1@example.com"],
+    "tasks": [],
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T11:45:00.000Z"
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="400 Bad Request">
+  ```json
+  {
+    "message": "Project ID and description are required"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "message": "Project not found"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "message": "Error updating project description"
+  }
+  ```
+</ResponseField>
+
+---
+
+## GET /api/project/[id]
+
+Get project information by ID (cached).
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Project ID
+</ParamField>
+
+### Response
+
+Returns the full project object.
+
+### Example Request
+
+```bash
+curl https://your-domain.com/api/project/507f191e810c19729de860ea
+```
+
+### Example Response
+
+```json
+{
+  "_id": "507f191e810c19729de860ea",
+  "title": "TeamUp Mobile App",
+  "description": "A mobile application for team collaboration",
+  "owner": "owner@example.com",
+  "maintainers": ["owner@example.com"],
+  "contributors": ["owner@example.com", "dev1@example.com"],
+  "tasks": ["507f191e810c19729de860eb"],
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "message": "Invalid Project ID"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "message": "Error fetching info"
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+- Response is cached for 60 seconds
+- Uses `stale-while-revalidate` caching strategy
+
+---
+
+## GET /api/project/[id]/dashboard
+
+Get project dashboard information with owner details.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Project ID
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Dashboard data object
+  
+  <Expandable title="data properties">
+    <ResponseField name="title" type="string">
+      Project title
+    </ResponseField>
+    
+    <ResponseField name="ownerName" type="string">
+      Owner's full name
+    </ResponseField>
+    
+    <ResponseField name="ownerPic" type="string">
+      URL to owner's profile picture
+    </ResponseField>
+    
+    <ResponseField name="ownerEmailId" type="string">
+      Owner's email address
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO timestamp of last project update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl https://your-domain.com/api/project/507f191e810c19729de860ea/dashboard
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "TeamUp Mobile App",
+    "ownerName": "John Doe",
+    "ownerPic": "https://lh3.googleusercontent.com/a/...",
+    "ownerEmailId": "owner@example.com",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "message": "Invalid Project ID",
+    "status": 404
+  }
+  ```
+</ResponseField>
+
+---
+
+## GET /api/project/[id]/stats
+
+Get project statistics including task counts and active contributors.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Project ID
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Statistics object
+  
+  <Expandable title="data properties">
+    <ResponseField name="title" type="string">
+      Project title
+    </ResponseField>
+    
+    <ResponseField name="totalTasks" type="number">
+      Total number of tasks in the project
+    </ResponseField>
+    
+    <ResponseField name="completedTasks" type="number">
+      Number of tasks with status 'completed'
+    </ResponseField>
+    
+    <ResponseField name="activeContributors" type="number">
+      Number of contributors active in the last 7 days
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl https://your-domain.com/api/project/507f191e810c19729de860ea/stats
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "TeamUp Mobile App",
+    "totalTasks": 24,
+    "completedTasks": 15,
+    "activeContributors": 5
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "message": "Project not found",
+    "status": 404
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+- Response is cached for 300 seconds (5 minutes)
+- Uses MongoDB aggregation for efficient statistics calculation
+
+---
+
+## GET /api/project/[id]/delete
+
+Get project information for deletion confirmation.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  Project ID
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Project deletion info
+  
+  <Expandable title="data properties">
+    <ResponseField name="title" type="string">
+      Project title
+    </ResponseField>
+    
+    <ResponseField name="owner" type="string">
+      Owner's email address
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      Formatted creation date (DD - MM - YYYY)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl https://your-domain.com/api/project/507f191e810c19729de860ea/delete
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "TeamUp Mobile App",
+    "owner": "owner@example.com",
+    "createdAt": "15 - 1 - 2024"
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "message": "Invalid Project ID",
+    "status": 404
+  }
+  ```
+</ResponseField>

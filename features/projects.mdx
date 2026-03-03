@@ -1,0 +1,424 @@
+---
+title: 'Project Management'
+description: 'Create and manage collaborative projects with team members'
+---
+
+## Overview
+
+Projects are the foundation of TeamUp's collaboration system. Each project has an owner, maintainers, and contributors with different permission levels. Projects contain tasks, support markdown descriptions, and provide complete control over team management.
+
+## Creating Projects
+
+### Project Creation Flow
+
+To create a new project, send a POST request to the project creation endpoint:
+
+```typescript create-project/route.ts
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    
+    const projectData = {
+      title: body.title || null,
+      description: body.description || null,
+      owner: body.owner || null,
+      maintainers: body.maintainers || null,
+      contributors: body.contributors || null,
+      tasks: body.tasks || null,
+      contributions: body.contributions || null,
+    };
+    
+    const newProject = new Project(projectData);
+    const projectCreated = await newProject.save();
+    
+    // Update all contributors' user documents
+    projectData.contributors.forEach(async (contributorEmailId: string) => {
+      await User.findOneAndUpdate(
+        { emailId: contributorEmailId },
+        { $push: { projects: projectCreated._id } }
+      );
+    });
+    
+    return NextResponse.json({ 
+      message: 'Project created successfully!', 
+      project: newProject 
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error during project creation:', error);
+    return NextResponse.json({ 
+      message: 'Error creating project' 
+    }, { status: 500 });
+  }
+}
+```
+
+### Required Fields
+
+- **title**: Project name (required)
+- **owner**: Email address of project owner (required)
+- **maintainers**: Array of maintainer email addresses (required)
+- **contributors**: Array of contributor email addresses (required)
+- **description**: Markdown-formatted project description (optional)
+
+<Note>
+When creating a project, the owner is automatically included in the contributors list and should be added to maintainers if they need approval permissions.
+</Note>
+
+## Project Schema
+
+### Database Structure
+
+Projects are stored in MongoDB with the following schema:
+
+```typescript projectModel.ts
+const projectSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, 'Please add title'],
+  },
+  description: {
+    type: String,
+  },
+  owner: {
+    type: String, // email of owner
+    required: [true, 'Please add owner'],
+  },
+  maintainers: {
+    type: Array, // array of emails of maintainers
+    required: [true, 'Please add maintainers'],
+  },
+  contributors: {
+    type: Array, // array of emails of contributors
+    required: [true, 'Please add contributors'],
+  },
+  tasks: {
+    type: Array,
+  },
+  contributions: {
+    type: Array,
+  },
+}, { timestamps: true });
+```
+
+### Indexed Fields
+
+For optimal query performance, the following fields are indexed:
+
+```typescript
+projectSchema.index({ owner: 1 });
+projectSchema.index({ contributors: 1 });
+projectSchema.index({ maintainers: 1 });
+projectSchema.index({ title: 1 });
+projectSchema.index({ 'tasks': 1 });
+projectSchema.index({ owner: 1, title: 1 });
+projectSchema.index({ 'tasks.status': 1 });
+projectSchema.index({ createdAt: 1 });
+```
+
+<Info>
+Indexes on `owner`, `contributors`, and `maintainers` fields enable fast queries when fetching projects for specific users.
+</Info>
+
+## Project Ownership and Roles
+
+### Role Hierarchy
+
+TeamUp has three distinct role levels:
+
+1. **Owner**: Full control over the project
+   - Create and delete the project
+   - Manage all team members
+   - Approve task submissions
+   - Edit project settings
+   - Cannot be removed from the project
+
+2. **Maintainer**: Project management capabilities
+   - Approve task submissions
+   - Create and assign tasks
+   - View all project data
+   - Can be promoted/demoted by owner
+
+3. **Contributor**: Standard team member
+   - Work on assigned tasks
+   - Submit tasks for approval
+   - View project information
+   - Can leave the project
+
+<Warning>
+The project owner cannot be changed after creation. If ownership transfer is needed, create a new project and migrate data.
+</Warning>
+
+## Markdown Descriptions
+
+### Rich Text Support
+
+Project descriptions support full Markdown formatting:
+
+```markdown
+# Project Overview
+
+This is a **collaborative** project for building an amazing feature.
+
+## Goals
+
+- Complete feature implementation
+- Write comprehensive tests
+- Update documentation
+
+## Resources
+
+- [Design Mockups](https://example.com/designs)
+- [Technical Spec](https://example.com/spec)
+
+```javascript
+const example = "Code blocks are supported!";
+```
+```
+
+### Updating Descriptions
+
+Project descriptions can be updated via the PUT endpoint:
+
+```typescript project/route.ts
+export async function PUT(request: NextRequest) {
+  const body = await request.json();
+  const { projectId, description } = body;
+
+  if (!projectId || description === undefined) {
+    return NextResponse.json(
+      { message: 'Project ID and description are required' },
+      { status: 400 }
+    );
+  }
+
+  const updatedProject = await Project.findByIdAndUpdate(
+    projectId,
+    { description: description },
+    { new: true }
+  );
+
+  return NextResponse.json(
+    { message: 'Description updated successfully', project: updatedProject },
+    { status: 200 }
+  );
+}
+```
+
+<Tip>
+Use Markdown descriptions to document project goals, requirements, resources, and guidelines for contributors.
+</Tip>
+
+## Fetching Projects
+
+### Get Single Project
+
+Retrieve a specific project by ID:
+
+```typescript
+const response = await fetch(`/api/project/${projectId}`);
+const project = await response.json();
+```
+
+The API endpoint:
+
+```typescript project/[id]/route.ts
+export async function GET(
+  request: NextRequest, 
+  { params }: { params: { id: string } }
+) {
+  try {
+    const project = await Project.findById(params.id);
+    
+    if (!project) {
+      return NextResponse.json(
+        { message: 'Invalid Project ID' }, 
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(project, { status: 200 });
+  } catch (error) {
+    return NextResponse.json(
+      { message: 'Error fetching info' }, 
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Get All Projects
+
+Fetch all projects (optionally filtered):
+
+```typescript
+const response = await fetch('/api/project');
+const projects = await response.json();
+```
+
+<Info>
+Project responses are cached for 60 seconds to improve performance. Use `Cache-Control` headers to manage caching behavior.
+</Info>
+
+## Project Deletion and Cleanup
+
+### Complete Project Removal
+
+Deleting a project triggers a comprehensive cleanup process:
+
+```typescript project/route.ts
+if (toDelete) {
+  for (const projectId of toDelete) {
+    const project = await Project.findOne({ _id: projectId });
+    if (!project) continue;
+
+    // 1. Get all tasks associated with the project
+    const projectTasks = await Task.find({ projectId: projectId });
+
+    // 2. Remove tasks from all users who have these tasks
+    for (const task of projectTasks) {
+      await User.updateMany(
+        { tasks: task._id },
+        { $pull: { tasks: task._id } }
+      );
+    }
+
+    // 3. Delete all tasks associated with the project
+    await Task.deleteMany({ projectId: projectId });
+    
+    // 4. Remove project from all contributors
+    for (const contributorEmail of project.contributors) {
+      const user = await User.findOne({ emailId: contributorEmail });
+      if (!user) continue;
+      
+      const index = user.projects.indexOf(projectId);
+      if (index > -1) {
+        user.projects.splice(index, 1);
+        await user.save();
+      }
+    }
+    
+    // 5. Delete the project
+    await Project.deleteOne({ _id: projectId });
+  }
+}
+```
+
+### Deletion Cascades
+
+When a project is deleted:
+
+1. All tasks are deleted
+2. Task references removed from user documents
+3. Project references removed from all contributor profiles
+4. All associated data is permanently removed
+
+<Warning>
+Project deletion is permanent and cannot be undone. All tasks and associated data will be lost.
+</Warning>
+
+## Leaving Projects
+
+### Contributor Exit Process
+
+When a contributor leaves a project:
+
+```typescript
+if (toLeave) {
+  for (const projectId of toLeave) {
+    const project = await Project.findOne({ _id: projectId });
+    if (!project) continue;
+
+    // Get tasks assigned to the leaving user
+    const userTasks = await Task.find({ 
+      projectId: projectId,
+      assignees: emailId 
+    });
+
+    if (userTasks.length > 0) {
+      // Remove task IDs from the user document
+      await User.findOneAndUpdate(
+        { emailId: emailId },
+        { $pull: { tasks: { $in: userTasks.map(task => task._id) } } }
+      );
+
+      // Delete tasks where this user was the only assignee
+      await Task.deleteMany({
+        projectId: projectId,
+        assignees: { $size: 1, $elemMatch: { $eq: emailId } }
+      });
+
+      // Remove user from tasks with multiple assignees
+      await Task.updateMany(
+        { projectId: projectId, assignees: emailId },
+        { $pull: { assignees: emailId } }
+      );
+    }
+
+    // Remove from maintainers if applicable
+    const maintainers = project.maintainers;
+    if (maintainers.indexOf(emailId) > -1) {
+      if (maintainers.length === 1) {
+        maintainers.push(project.owner);
+      }
+      maintainers.splice(maintainers.indexOf(emailId), 1);
+    }
+
+    // Remove from contributors
+    const contributors = project.contributors;
+    const contributorIndex = contributors.indexOf(emailId);
+    if (contributorIndex > -1) {
+      contributors.splice(contributorIndex, 1);
+    }
+
+    await project.save();
+  }
+}
+```
+
+### Leave Project Rules
+
+- **Owner cannot leave**: Project owners must delete the project
+- **Tasks are reassigned**: Tasks with multiple assignees remain active
+- **Solo tasks deleted**: Tasks with only the leaving user are removed
+- **Automatic maintainer**: If last maintainer leaves, owner becomes maintainer
+
+<Note>
+When leaving a project, ensure critical tasks are reassigned to other team members to avoid disruption.
+</Note>
+
+## Best Practices
+
+### Project Organization
+
+1. **Clear titles**: Use descriptive, searchable project names
+2. **Detailed descriptions**: Document goals, requirements, and resources
+3. **Proper role assignment**: Add maintainers who can approve work
+4. **Regular updates**: Keep descriptions current as projects evolve
+5. **Clean up**: Delete completed or abandoned projects
+
+### Performance Optimization
+
+```typescript
+// Enable caching for project data
+export const revalidate = 60 // Cache for 60 seconds
+export const maxDuration = 60 // 60 second timeout
+```
+
+### Error Handling
+
+```typescript
+try {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { error: 'Project not found' };
+  }
+  return project;
+} catch (error) {
+  console.error('Error fetching project:', error);
+  return { error: 'Failed to fetch project' };
+}
+```
+
+<Tip>
+Implement proper error handling and validation at both the API and UI levels to provide clear feedback to users.
+</Tip>

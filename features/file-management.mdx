@@ -1,0 +1,500 @@
+---
+title: 'File Management'
+description: 'Upload and manage file attachments for tasks'
+---
+
+## Overview
+
+TeamUp's file management system allows team members to attach files to tasks. Files are securely stored in the project's public uploads directory and can be referenced by tasks for documentation, specifications, deliverables, and other project materials.
+
+## File Upload System
+
+### Upload Configuration
+
+File uploads are handled using Formidable with the following configuration:
+
+```typescript task/route.ts
+import formidable from 'formidable';
+import { join } from 'path';
+
+const uploadDir = join(process.cwd(), 'public', 'uploads');
+
+const form = formidable({
+  uploadDir,
+  keepExtensions: true,
+  maxFileSize: 10 * 1024 * 1024, // 10MB limit
+  filename: (name, ext, path, form) => {
+    return `${Date.now()}-${path}`;
+  }
+});
+```
+
+### Configuration Options
+
+- **uploadDir**: Files stored in `public/uploads/` directory
+- **keepExtensions**: Preserves original file extensions
+- **maxFileSize**: 10MB maximum file size
+- **filename**: Timestamp-based naming to prevent collisions
+
+<Note>
+Files are stored in the `public` directory, making them directly accessible via HTTP requests.
+</Note>
+
+## Uploading Files to Tasks
+
+### File Upload Process
+
+Files are uploaded when creating tasks using multipart form data:
+
+```typescript task/route.ts
+export async function POST(request: NextRequest) {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(process.env.MONGODB_URI + '', {
+        serverSelectionTimeoutMS: 15000,
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 15000,
+      });
+    }
+    
+    // Parse form data including file
+    const { fields, fileUrl } = await parseForm(request, uploadDir);
+
+    // Extract task details
+    const description = Array.isArray(fields.description)
+      ? fields.description[0]
+      : fields.description || '';
+
+    const assigneeEmails = fields.assignees
+      ? JSON.parse(
+          Array.isArray(fields.assignees) 
+            ? fields.assignees[0] 
+            : fields.assignees
+        )
+      : [];
+
+    const projectName = Array.isArray(fields.projectName)
+      ? fields.projectName[0]
+      : fields.projectName || '';
+
+    const projectId = Array.isArray(fields.projectId)
+      ? fields.projectId[0]
+      : fields.projectId || '';
+
+    // Create task with file URL
+    const task = await Task.create({
+      description,
+      assignees: assigneeEmails,
+      fileUrl, // Stored file path
+      projectName,
+      projectId,
+      createdAt: new Date(),
+      submitted: false,
+      approvals: [],
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Task created successfully',
+      task: {
+        id: task._id,
+        description,
+        assignees: assigneeEmails,
+        fileUrl,
+        projectName,
+        projectId,
+        createdAt: task.createdAt,
+        submitted: task.submitted,
+        approvals: task.approvals
+      },
+    });
+  } catch (error) {
+    console.error('Error creating task:', error);
+    return NextResponse.json(
+      { success: false, message: 'Error creating task' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Form Parsing Function
+
+The `parseForm` function handles Next.js request conversion:
+
+```typescript task/route.ts
+async function parseForm(
+  req: NextRequest, 
+  uploadDir: string
+): Promise<{ fields: Fields; fileUrl: string | null }> {
+  return new Promise(async (resolve, reject) => {
+    const form = formidable({
+      uploadDir,
+      keepExtensions: true,
+      maxFileSize: 10 * 1024 * 1024,
+      filename: (name, ext, path, form) => {
+        return `${Date.now()}-${path}`;
+      }
+    });
+
+    const chunks = [];
+    const reader = req.body?.getReader();
+    
+    if (!reader) {
+      reject(new Error('No request body'));
+      return;
+    }
+
+    // Read request body chunks
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+
+    const buffer = Buffer.concat(chunks);
+    
+    // Create Node.js IncomingMessage stream
+    const stream = Object.assign(new Readable(), {
+      aborted: false,
+      complete: true,
+      connection: null,
+      headers: {} as Record<string, string>,
+      headersDistinct: {},
+      httpVersion: '1.1',
+      httpVersionMajor: 1,
+      httpVersionMinor: 1,
+      method: req.method,
+      url: req.url,
+      socket: null,
+      statusCode: null,
+      statusMessage: null,
+      destroyed: false
+    }) as unknown as IncomingMessage;
+
+    stream.push(buffer);
+    stream.push(null);
+
+    // Copy headers
+    req.headers.forEach((value, key) => {
+      stream.headers[key.toLowerCase()] = value;
+    });
+
+    // Parse form with formidable
+    form.parse(stream, (err, fields, files) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      const file = Array.isArray(files.file) 
+        ? files.file[0] 
+        : files.file;
+      
+      const fileUrl = file && file.newFilename
+        ? `/uploads/${file.newFilename}`
+        : null;
+
+      resolve({ fields, fileUrl });
+    });
+  });
+}
+```
+
+<Info>
+The parsing function converts Next.js Request objects to Node.js IncomingMessage format required by Formidable.
+</Info>
+
+## File Storage and Security
+
+### Storage Location
+
+Files are stored in the public uploads directory:
+
+```
+project-root/
+└── public/
+    └── uploads/
+        ├── 1234567890-document.pdf
+        ├── 1234567891-image.png
+        └── 1234567892-specification.docx
+```
+
+### File Naming Convention
+
+Files are named using a timestamp prefix:
+
+```typescript
+filename: (name, ext, path, form) => {
+  return `${Date.now()}-${path}`;
+}
+
+// Example outputs:
+// 1709481234567-requirements.pdf
+// 1709481235890-design-mockup.png
+```
+
+### Security Considerations
+
+<Warning>
+Files stored in the `public` directory are publicly accessible. Never store sensitive information in task attachments.
+</Warning>
+
+#### Security Best Practices
+
+1. **Validate file types**: Only accept expected file formats
+2. **Scan for malware**: Implement virus scanning for uploads
+3. **Limit file sizes**: Enforce the 10MB maximum
+4. **Generate unique names**: Prevent filename collisions and overwrites
+5. **Access control**: Verify user permissions before allowing downloads
+6. **HTTPS only**: Always serve files over encrypted connections
+
+### Accessing Uploaded Files
+
+Files can be accessed via their URL:
+
+```typescript
+// File URL stored in database
+const fileUrl = "/uploads/1709481234567-requirements.pdf";
+
+// Access in browser or download
+const fullUrl = `${process.env.NEXT_PUBLIC_URL}${fileUrl}`;
+```
+
+<Tip>
+Store only the relative path (`/uploads/filename`) in the database, not the full URL. This makes the application portable across environments.
+</Tip>
+
+## Supported File Types
+
+### Recommended File Types
+
+While TeamUp doesn't explicitly restrict file types, these are commonly used:
+
+#### Documents
+- **PDF** (.pdf) - Reports, specifications, documentation
+- **Word** (.doc, .docx) - Editable documents
+- **Text** (.txt, .md) - Plain text and markdown files
+
+#### Images
+- **PNG** (.png) - Screenshots, diagrams
+- **JPEG** (.jpg, .jpeg) - Photos, images
+- **SVG** (.svg) - Vector graphics
+
+#### Archives
+- **ZIP** (.zip) - Compressed files
+- **TAR** (.tar, .tar.gz) - Archives
+
+#### Code
+- **Source files** (.js, .ts, .py, .java, etc.)
+- **JSON** (.json) - Configuration files
+- **YAML** (.yml, .yaml) - Configuration files
+
+<Note>
+`keepExtensions: true` ensures original file extensions are preserved, making files easier to identify and open.
+</Note>
+
+## File Size Limits
+
+### Maximum File Size
+
+The default maximum file size is 10MB:
+
+```typescript
+maxFileSize: 10 * 1024 * 1024 // 10MB in bytes
+```
+
+### Handling Large Files
+
+For files larger than 10MB, consider:
+
+1. **Increase the limit** in formidable configuration:
+
+```typescript
+const form = formidable({
+  uploadDir,
+  keepExtensions: true,
+  maxFileSize: 50 * 1024 * 1024, // 50MB
+  filename: (name, ext, path, form) => {
+    return `${Date.now()}-${path}`;
+  }
+});
+```
+
+2. **Use external storage** for very large files:
+   - AWS S3
+   - Google Cloud Storage
+   - Azure Blob Storage
+
+3. **Implement chunked uploads** for files over 50MB
+
+<Warning>
+Increasing file size limits impacts server storage and memory. Monitor disk usage and implement cleanup policies for old files.
+</Warning>
+
+## Error Handling
+
+### Upload Error Scenarios
+
+```typescript
+try {
+  const { fields, fileUrl } = await parseForm(request, uploadDir);
+} catch (error) {
+  if (error.message.includes('maxFileSize')) {
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: 'File size exceeds 10MB limit' 
+      },
+      { status: 413 } // Payload Too Large
+    );
+  }
+  
+  if (error.message.includes('No request body')) {
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: 'No file provided' 
+      },
+      { status: 400 }
+    );
+  }
+  
+  console.error('Upload error:', error);
+  return NextResponse.json(
+    { 
+      success: false, 
+      message: 'Error uploading file' 
+    },
+    { status: 500 }
+  );
+}
+```
+
+### Common Error Types
+
+- **413 Payload Too Large**: File exceeds maximum size
+- **400 Bad Request**: Missing or invalid form data
+- **500 Internal Server Error**: Server-side processing failure
+- **507 Insufficient Storage**: Disk space full
+
+## File Management Best Practices
+
+### Upload Guidelines
+
+1. **Validate before upload**: Check file size and type on client-side
+2. **Show progress**: Display upload progress for better UX
+3. **Handle errors gracefully**: Provide clear error messages
+4. **Confirm uploads**: Show success message with file name
+5. **Preview files**: Display thumbnails or icons for uploaded files
+
+### Client-Side Example
+
+```typescript
+const uploadTaskWithFile = async (
+  taskData: TaskData, 
+  file: File | null
+) => {
+  // Validate file size
+  if (file && file.size > 10 * 1024 * 1024) {
+    throw new Error('File size must be less than 10MB');
+  }
+
+  // Create form data
+  const formData = new FormData();
+  formData.append('description', taskData.description);
+  formData.append('assignees', JSON.stringify(taskData.assignees));
+  formData.append('projectName', taskData.projectName);
+  formData.append('projectId', taskData.projectId);
+  
+  if (file) {
+    formData.append('file', file);
+  }
+
+  // Upload
+  const response = await fetch('/api/task', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message);
+  }
+
+  return await response.json();
+};
+```
+
+### Storage Management
+
+```typescript
+// Implement periodic cleanup of old files
+async function cleanupOldFiles(daysOld: number = 90) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+  
+  // Find tasks with old files
+  const oldTasks = await Task.find({
+    createdAt: { $lt: cutoffDate },
+    fileUrl: { $ne: null }
+  });
+  
+  // Delete files and update tasks
+  for (const task of oldTasks) {
+    if (task.fileUrl) {
+      const filePath = join(
+        process.cwd(), 
+        'public', 
+        task.fileUrl
+      );
+      
+      try {
+        await unlink(filePath);
+        task.fileUrl = null;
+        await task.save();
+      } catch (error) {
+        console.error(`Failed to delete file: ${filePath}`, error);
+      }
+    }
+  }
+}
+```
+
+<Tip>
+Implement automated cleanup policies to prevent unlimited storage growth. Archive or delete files from completed or old tasks.
+</Tip>
+
+## Configuration
+
+### Environment Variables
+
+Configure file upload settings:
+
+```bash .env.local
+# MongoDB connection for storing file references
+MONGODB_URI=your-mongodb-uri
+
+# Base URL for constructing full file URLs
+NEXT_PUBLIC_URL=http://localhost:3000
+
+# Optional: Custom upload directory
+UPLOAD_DIR=/custom/upload/path
+
+# Optional: Max file size in bytes
+MAX_FILE_SIZE=10485760
+```
+
+### Runtime Configuration
+
+Adjust runtime settings for file uploads:
+
+```typescript
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60 // 60 second timeout for uploads
+export const runtime = 'nodejs' // Required for file system access
+```
+
+<Info>
+The `maxDuration` setting prevents timeout errors during large file uploads. Adjust based on your expected file sizes and network speeds.
+</Info>

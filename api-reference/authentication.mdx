@@ -1,0 +1,258 @@
+---
+title: 'Authentication'
+description: 'Authentication and user management endpoints'
+---
+
+## POST /api/auth/signup
+
+Register a new user account.
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  User's full name
+</ParamField>
+
+<ParamField body="username" type="string">
+  Username (optional)
+</ParamField>
+
+<ParamField body="password" type="string">
+  User password (optional for Google-linked accounts)
+</ParamField>
+
+<ParamField body="emailId" type="string" required>
+  User's email address (must be unique)
+</ParamField>
+
+<ParamField body="isGoogleLinked" type="boolean">
+  Whether the account is linked to Google OAuth
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  Created user object
+  
+  <Expandable title="user properties">
+    <ResponseField name="_id" type="string">
+      User's unique identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      User's full name
+    </ResponseField>
+    
+    <ResponseField name="emailId" type="string">
+      User's email address
+    </ResponseField>
+    
+    <ResponseField name="projects" type="array">
+      Array of project IDs the user belongs to (initially empty)
+    </ResponseField>
+    
+    <ResponseField name="tasks" type="array">
+      Array of task IDs assigned to the user (initially empty)
+    </ResponseField>
+    
+    <ResponseField name="contributions" type="array">
+      Array of contribution records (initially empty)
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of user creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO timestamp of last update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl -X POST https://your-domain.com/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "username": "johndoe",
+    "emailId": "john@example.com",
+    "password": "securePassword123",
+    "isGoogleLinked": false
+  }'
+```
+
+### Example Response
+
+```json
+{
+  "message": "User Signed Up successfully!",
+  "user": {
+    "_id": "507f1f77bcf86cd799439011",
+    "name": "John Doe",
+    "emailId": "john@example.com",
+    "projects": [],
+    "tasks": [],
+    "contributions": [],
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+### Error Responses
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "message": "Error Signing Up"
+  }
+  ```
+</ResponseField>
+
+---
+
+## POST/GET /api/auth/[...nextauth]
+
+NextAuth.js authentication handlers for OAuth (Google) authentication.
+
+### Authentication
+
+This endpoint is managed by NextAuth.js and handles:
+- Google OAuth sign-in flow
+- Session management
+- Token handling
+
+### Configuration
+
+The authentication is configured with:
+- **Provider**: Google OAuth
+- **Client ID**: `process.env.AUTH_GOOGLE_ID`
+- **Client Secret**: `process.env.AUTH_GOOGLE_SECRET`
+
+### Usage
+
+To initiate Google sign-in:
+
+```javascript
+import { signIn } from "next-auth/react"
+
+// Trigger Google OAuth flow
+await signIn("google")
+```
+
+---
+
+## GET /api/userinfo
+
+Get current authenticated user information. Creates a new user record if the authenticated Google user doesn't exist in the database.
+
+### Authentication
+
+Requires valid NextAuth session (Google OAuth).
+
+### Response
+
+<ResponseField name="user" type="object" or name="array" type="array">
+  User object or array of user objects
+  
+  <Expandable title="user properties">
+    <ResponseField name="_id" type="string">
+      User's unique identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      User's full name from Google profile
+    </ResponseField>
+    
+    <ResponseField name="emailId" type="string">
+      User's email address
+    </ResponseField>
+    
+    <ResponseField name="profilePic" type="string">
+      URL to user's profile picture from Google
+    </ResponseField>
+    
+    <ResponseField name="projects" type="array">
+      Array of project IDs the user belongs to
+    </ResponseField>
+    
+    <ResponseField name="tasks" type="array">
+      Array of task IDs assigned to the user
+    </ResponseField>
+    
+    <ResponseField name="contributions" type="array">
+      Array of contribution records
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of user creation
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO timestamp of last update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+```bash
+curl https://your-domain.com/api/userinfo \
+  -H "Cookie: next-auth.session-token=..."
+```
+
+### Example Response (Existing User)
+
+```json
+[
+  {
+    "_id": "507f1f77bcf86cd799439011",
+    "name": "John Doe",
+    "emailId": "john@example.com",
+    "profilePic": "https://lh3.googleusercontent.com/a/...",
+    "projects": ["507f191e810c19729de860ea"],
+    "tasks": ["507f191e810c19729de860eb"],
+    "contributions": [],
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+]
+```
+
+### Example Response (New User Created)
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "John Doe",
+  "emailId": "john@example.com",
+  "profilePic": "https://lh3.googleusercontent.com/a/...",
+  "projects": [],
+  "tasks": [],
+  "contributions": [],
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Error Responses
+
+<ResponseField name="500 Internal Server Error">
+  ```json
+  {
+    "message": "Error fetching User's Info"
+  }
+  ```
+</ResponseField>
+
+### Notes
+
+- Extended timeout to 60 seconds for database operations
+- Automatically creates user account if Google-authenticated user doesn't exist
+- Returns existing user data if user is already registered
